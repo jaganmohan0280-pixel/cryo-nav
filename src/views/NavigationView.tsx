@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { AntarcticMap } from '../components/Map/AntarcticMap';
 import { TimelineSlider } from '../components/TimelineSlider';
@@ -20,6 +20,10 @@ import {
 import { VoyageStatePanel } from '../components/navigation/VoyageStatePanel';
 import { HazardEncounterPanel } from '../components/navigation/HazardEncounterPanel';
 import { evaluateAllRouteHazards } from '../services/hazardEncounterEngine';
+import { OfflineStatusPanel, OfflineStatusPanelProps } from '../components/navigation/OfflineStatusPanel';
+import { connectivityStateEngine } from '../services/connectivityStateEngine';
+import { offlineStorageEngine, OfflineNavigationSnapshot } from '../services/offlineStorageEngine';
+import { ConnectionState } from '../types';
 
 export const NavigationView: React.FC = () => {
   const {
@@ -45,6 +49,22 @@ export const NavigationView: React.FC = () => {
   const [showFactorsModal, setShowFactorsModal] = useState(false);
   const [selectedHazardId, setSelectedHazardId] = useState<string | null>(null);
 
+  const [connectionState, setConnectionState] = useState<ConnectionState>(() =>
+    connectivityStateEngine.getCurrentConnectionState()
+  );
+  const [offlineSnapshot, setOfflineSnapshot] = useState<OfflineNavigationSnapshot | null>(null);
+
+  // Subscribe to browser connectivity state transitions
+  useEffect(() => {
+    connectivityStateEngine.start();
+    const unsubscribe = connectivityStateEngine.subscribe((state) => {
+      setConnectionState(state);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   const activeRoute = recommendedRoute || (routes && routes.length > 0 ? routes[0] : null);
 
   const hazardEvaluation = useMemo(() => {
@@ -53,6 +73,117 @@ export const NavigationView: React.FC = () => {
       cruisingSpeedKnots: selectedVessel?.cruisingSpeedKnots || 12.0,
     });
   }, [activeRoute, icebergs, seaIceCells, selectedVessel]);
+
+  // Persist environmental state to local storage when online / update snapshot
+  useEffect(() => {
+    let isMounted = true;
+    const syncLocalStorage = async () => {
+      if (connectionState === 'ONLINE' || connectionState === 'LIMITED') {
+        if (seaIceCells || icebergs || weather) {
+          await offlineStorageEngine.saveEnvironmentalState({
+            seaIceCells: seaIceCells || [],
+            oceanCurrentCells: [],
+            weather: weather || null,
+            icebergs: icebergs || [],
+          });
+        }
+        if (activeRoute) {
+          await offlineStorageEngine.saveRoute(activeRoute);
+        }
+        if (hazardEvaluation) {
+          await offlineStorageEngine.saveHazards(hazardEvaluation);
+        }
+      }
+      const snapRes = await offlineStorageEngine.getOfflineSnapshot();
+      if (isMounted && snapRes.status === 'STORAGE_AVAILABLE' && snapRes.data) {
+        setOfflineSnapshot(snapRes.data);
+      }
+    };
+    syncLocalStorage();
+    return () => {
+      isMounted = false;
+    };
+  }, [connectionState, seaIceCells, icebergs, weather, activeRoute, hazardEvaluation, unifiedEnvironment]);
+
+  // Derive panel props for Phase 9B OfflineStatusPanel
+  const offlinePanelProps: OfflineStatusPanelProps = useMemo(() => {
+    if (!offlineSnapshot || !offlineSnapshot.isOfflineAvailable || offlineSnapshot.storageStatus === 'STORAGE_EMPTY') {
+      return {
+        connectionState,
+        localDataAvailability: 'EMPTY' as const,
+        lastSyncTimestamp: null,
+        dataFreshnessSummary: 'NO LOCAL DATA CACHED',
+        dataSources: [
+          { name: 'Sea Ice', mode: 'UNAVAILABLE' as const, isCached: false, freshnessLabel: 'UNAVAILABLE' },
+          { name: 'Ocean', mode: 'UNAVAILABLE' as const, isCached: false, freshnessLabel: 'UNAVAILABLE' },
+          { name: 'Weather', mode: 'UNAVAILABLE' as const, isCached: false, freshnessLabel: 'UNAVAILABLE' },
+          { name: 'Icebergs', mode: 'UNAVAILABLE' as const, isCached: false, freshnessLabel: 'UNAVAILABLE' },
+          { name: 'Route', mode: 'UNAVAILABLE' as const, isCached: false, freshnessLabel: 'UNAVAILABLE' },
+          { name: 'Voyage State', mode: 'UNAVAILABLE' as const, isCached: false, freshnessLabel: 'UNAVAILABLE' },
+        ],
+      };
+    }
+
+    const isCached = connectionState === 'OFFLINE';
+
+    const dataSources: Array<{ name: string; mode: 'REAL' | 'SIMULATED' | 'UNAVAILABLE'; isCached: boolean; lastUpdate?: string | null; freshnessLabel: string }> = [
+      {
+        name: 'Sea Ice',
+        mode: offlineSnapshot.environmentalState?.seaIceCells?.some((c) => c.isRealData) ? 'REAL' : 'SIMULATED',
+        isCached,
+        lastUpdate: offlineSnapshot.syncTimestamp,
+        freshnessLabel: 'FRESH',
+      },
+      {
+        name: 'Ocean',
+        mode: offlineSnapshot.environmentalState?.oceanCurrentCells?.length ? 'REAL' : 'SIMULATED',
+        isCached,
+        lastUpdate: offlineSnapshot.syncTimestamp,
+        freshnessLabel: 'FRESH',
+      },
+      {
+        name: 'Weather',
+        mode: offlineSnapshot.environmentalState?.weather ? (offlineSnapshot.environmentalState.weather.isRealData ? 'REAL' : 'SIMULATED') : 'UNAVAILABLE',
+        isCached,
+        lastUpdate: offlineSnapshot.syncTimestamp,
+        freshnessLabel: offlineSnapshot.environmentalState?.weather ? 'FRESH' : 'UNAVAILABLE',
+      },
+      {
+        name: 'Icebergs',
+        mode: offlineSnapshot.environmentalState?.icebergs?.some((b) => !b.isSynthetic) ? 'REAL' : 'SIMULATED',
+        isCached,
+        lastUpdate: offlineSnapshot.syncTimestamp,
+        freshnessLabel: 'FRESH',
+      },
+      {
+        name: 'Route',
+        mode: offlineSnapshot.routes?.length > 0 ? 'REAL' : 'UNAVAILABLE',
+        isCached,
+        lastUpdate: offlineSnapshot.syncTimestamp,
+        freshnessLabel: offlineSnapshot.routes?.length > 0 ? 'FRESH' : 'UNAVAILABLE',
+      },
+      {
+        name: 'Voyage State',
+        mode: offlineSnapshot.voyageState?.dataMode === 'REAL' ? 'REAL' : offlineSnapshot.voyageState?.dataMode === 'SIMULATED' ? 'SIMULATED' : 'UNAVAILABLE',
+        isCached,
+        lastUpdate: offlineSnapshot.syncTimestamp,
+        freshnessLabel: offlineSnapshot.voyageState ? 'FRESH' : 'UNAVAILABLE',
+      },
+    ];
+
+    const hasAll = dataSources.every((ds) => ds.mode !== 'UNAVAILABLE');
+    const localDataAvailability = hasAll ? ('AVAILABLE' as const) : ('PARTIAL' as const);
+
+    return {
+      connectionState,
+      localDataAvailability,
+      lastSyncTimestamp: offlineSnapshot.syncTimestamp,
+      dataFreshnessSummary: offlineSnapshot.syncTimestamp
+        ? `Last saved at ${new Date(offlineSnapshot.syncTimestamp).toLocaleTimeString()}`
+        : 'FRESH',
+      dataSources,
+    };
+  }, [connectionState, offlineSnapshot]);
 
   // Find nearest iceberg to current GPS position
   const nearestBerg = icebergs
@@ -73,6 +204,9 @@ export const NavigationView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50 space-y-2 p-2 sm:p-3 overflow-y-auto">
+      {/* Phase 9C — Offline Connectivity & Readiness Panel */}
+      <OfflineStatusPanel {...offlinePanelProps} />
+
       {/* Phase 8A — Voyage State Monitoring Panel */}
       <VoyageStatePanel />
 

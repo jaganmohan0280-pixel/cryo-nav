@@ -15,6 +15,9 @@ import { runSarCandidateConfirmationTests } from './sarCandidateConfirmation.tes
 import { runAreaSarAnalysisTests } from './areaSarAnalysis.test';
 import { runVoyageStateTests } from './voyageState.test';
 import { runHazardEncounterTests } from './hazardEncounter.test';
+import { runOfflineStorageTests } from './offlineStorage.test';
+import { runOfflineStatusPanelTests } from './offlineStatusPanel.test';
+import { runOfflineIntegrationTests } from './offlineIntegration.test';
 
 // 1. Run Phase 4 Decision Confidence Tests (auto-runs on import)
 import './confidenceEngine.test';
@@ -39,6 +42,9 @@ p7bPromise.then(async (p7bResult) => {
   const p7c4UxResult = runAreaSarAnalysisTests();
   runVoyageStateTests();
   const p8bResult = runHazardEncounterTests();
+  const p9aResult = await runOfflineStorageTests();
+  runOfflineStatusPanelTests();
+  const p9cResult = await runOfflineIntegrationTests();
 
   if (
     p5Result.failed > 0 ||
@@ -50,12 +56,14 @@ p7bPromise.then(async (p7bResult) => {
     p7c3Result.failed > 0 ||
     p7c4Result.failed > 0 ||
     p7c4UxResult.failed > 0 ||
-    p8bResult.failed > 0
+    p8bResult.failed > 0 ||
+    p9aResult.failed > 0 ||
+    !p9cResult.success
   ) {
     process.exit(1);
   } else {
     console.log('========================================================================================');
-    console.log('ALL PHASE 4, 5, 6, 7A, 7B, 7C, 8A & 8B HAZARD ENCOUNTER TESTS PASSED!');
+    console.log('ALL PHASE 4, 5, 6, 7A, 7B, 7C, 8A, 8B, 9A, 9B & 9C OFFLINE INTEGRATION TESTS PASSED!');
     console.log('========================================================================================\n');
   }
 });
