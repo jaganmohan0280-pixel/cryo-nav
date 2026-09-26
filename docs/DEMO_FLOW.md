@@ -721,6 +721,41 @@ This document provides the exact sequence of actions to demonstrate the full CRY
 - **JUDGE-FACING STATEMENT:**
   > *"CRYO NAV does not download everything. Instead, it evaluates discoverable satellite products against route sensitivity and bandwidth limits to identify which specific acquisitions can actually alter the active navigation decision."*
 
+---
+
+## PHASE 12 CONTINUOUS DECISION REASSESSMENT DEMONSTRATION (PHASE 12B UI)
+
+### Step 34: Phase 12 Decision Reassessment UI Demonstration Flow
+
+- **WHAT IS BEING BUILT:**
+  Decision Reassessment UI (`DecisionReassessmentPanel`). Presentational component displaying continuous decision stability and reassessment indicators.
+
+- **WHERE:**
+  Navigation decision-support workspace (standalone UI component in Phase 12B; integration is intentionally deferred to Phase 12C).
+
+- **CURRENT PHASE:**
+  Phase 12B (Standalone UI & Component Verification). Integration into `NavigationView.tsx` is intentionally deferred to Phase 12C.
+
+- **JUDGE DEMO FLOW (AFTER FUTURE INTEGRATION):**
+  1. **Open Live Navigation Workspace:** Open `NavigationView`.
+  2. **Observe Current Navigation Decision:** View baseline recommended route and decision status (`STABLE`).
+  3. **Simulate Environmental / Model State Shift:** Parameter update occurs (e.g. iceberg CPA drops, uncertainty expands, or confidence degrades).
+  4. **Decision Reassessment Evaluation:** `evaluateDecisionReassessment` compares previous and current snapshots.
+  5. **Panel State Display:** `DecisionReassessmentPanel` updates status display dynamically:
+     - `STABLE` (Emerald): Decision remains robust.
+     - `MONITOR` (Cyan): Moderate parameter drift; ongoing monitoring recommended.
+     - `REASSESS` (Amber): Material decision-relevant change detected; reassessment warranted.
+     - `RECOMMEND_REVIEW` (Rose): High sensitivity or critical risk change; formal navigator review recommended.
+  6. **Inspect Exact Trigger Reasons:** Panel lists evaluated trigger drivers (e.g. *"Closest Point of Approach (CPA) decreased from 15.0 nm to 2.5 nm"*).
+  7. **Inspect Uncertainty & CPA Metrics:** Review previous vs current radius, delta, expansion %, severity shift, and affected hazard ID.
+  8. **Inspect Data Provenance & Mode:** Panel explicitly highlights `REAL`, `SIMULATED`, or `HYBRID` provenance badges.
+  9. **Navigator Review:** Navigator evaluates displayed reassessment rationale and decision support recommendations.
+  10. **No Automatic Replanning:** Component provides decision support ONLY; route geometry and waypoints are NOT automatically changed.
+
+- **DATA STATUS:**
+  `REAL` when fed by the existing Copernicus Marine / ECMWF / USNIC real-data pipeline. `SIMULATED` when fed by explicit synthetic demonstration state. This phase itself creates no environmental data.
+
+
 
 
 
