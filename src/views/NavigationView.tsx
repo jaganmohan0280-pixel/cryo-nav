@@ -32,6 +32,11 @@ import {
 } from '../services/uncertaintyEngine';
 import { UncertaintyZonePanel, UncertaintyData } from '../components/navigation/UncertaintyZonePanel';
 import { UncertaintyLegend } from '../components/navigation/UncertaintyLegend';
+import {
+  evaluateAcquisitionPriorities,
+  AcquisitionRankingResult,
+} from '../services/decisionImpactAcquisitionEngine';
+import { DecisionImpactAcquisitionPanel } from '../components/navigation/DecisionImpactAcquisitionPanel';
 
 export const NavigationView: React.FC = () => {
   const {
@@ -45,6 +50,7 @@ export const NavigationView: React.FC = () => {
     seaIceCells,
     recommendedRoute,
     routes,
+    selectedRouteId,
     replanRoutes,
     weather,
     decisionConfidence,
@@ -52,6 +58,8 @@ export const NavigationView: React.FC = () => {
     forecastHorizonHours,
     setActiveView,
     dataAcquisitionRecommendations,
+    satelliteProducts,
+    batchSensitivitySummary,
   } = useApp();
 
   const [showFactorsModal, setShowFactorsModal] = useState(false);
@@ -198,6 +206,35 @@ export const NavigationView: React.FC = () => {
     };
   }, [uncertaintyEvaluations, selectedHazardId]);
 
+  // Derive Phase 11A / 11C Decision-Impact Acquisition Priorities
+  const acquisitionRankingResult = useMemo<AcquisitionRankingResult | null>(() => {
+    const candidates = satelliteProducts && satelliteProducts.length > 0 ? satelliteProducts : [];
+    if (candidates.length === 0) return null;
+
+    return evaluateAcquisitionPriorities({
+      activeRoutes: routes || [],
+      selectedRouteId,
+      candidateProducts: candidates,
+      uncertaintyZones: uncertaintyEvaluations || [],
+      icebergs: icebergs || [],
+      seaIceCells: seaIceCells || [],
+      decisionConfidence,
+      batchSensitivity: batchSensitivitySummary,
+      connectionState,
+      availableBandwidthMb: connectionState === 'LIMITED' ? 50 : 150,
+    });
+  }, [
+    routes,
+    selectedRouteId,
+    satelliteProducts,
+    uncertaintyEvaluations,
+    icebergs,
+    seaIceCells,
+    decisionConfidence,
+    batchSensitivitySummary,
+    connectionState,
+  ]);
+
   // Persist environmental state to local storage when online / update snapshot
   useEffect(() => {
     let isMounted = true;
@@ -343,6 +380,16 @@ export const NavigationView: React.FC = () => {
 
       {/* Phase 10B/10C — Uncertainty Zone Visualization & Explanation Panel */}
       <UncertaintyZonePanel uncertaintyData={activeUncertaintyPanelData} showLegendInline={true} />
+
+      {/* Phase 11C — Decision-Impact Data Acquisition Integration Panel */}
+      <DecisionImpactAcquisitionPanel
+        rankingResult={acquisitionRankingResult}
+        currentRouteName={activeRoute?.name || 'Active Route Corridor'}
+        decisionSensitivity={batchSensitivitySummary?.overallStability || 'ROBUST'}
+        currentUncertainty={activeUncertaintyPanelData?.uncertaintyEnvelopeLabel || 'Regional Uncertainty Zone'}
+        connectionState={connectionState}
+        availableBandwidthMb={connectionState === 'LIMITED' ? 50 : 150}
+      />
 
       {/* Main Split: Center Interactive Map + Right Conning Telemetry Panel */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-[500px] border border-slate-200 rounded-lg bg-white shadow-xs">
