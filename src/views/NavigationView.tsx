@@ -50,6 +50,13 @@ import {
   DataMode,
 } from '../services/routeResilienceEngine';
 import { RouteResiliencePanel } from '../components/navigation/RouteResiliencePanel';
+import {
+  evaluateNavigationAlerts,
+  NavigationAlertEvaluationResult,
+  GPSInputState,
+  NavigationDataMode,
+} from '../services/navigationAlertEngine';
+import { NavigationAlertPanel } from '../components/navigation/NavigationAlertPanel';
 
 export const NavigationView: React.FC = () => {
   const {
@@ -369,6 +376,61 @@ export const NavigationView: React.FC = () => {
     });
   }, [activeRoute, selectedVessel, seaIceCells, icebergs, currentSnapshot]);
 
+  // Phase 14B — GPS Tracking & Navigation Alert Evaluation
+  const navigationAlertResult = useMemo<NavigationAlertEvaluationResult | null>(() => {
+    const isGpsActive = gpsTracking.isSimulating || (gpsTracking.currentLat !== 0 && gpsTracking.currentLon !== 0);
+    const gpsState: GPSInputState = {
+      lat: isGpsActive ? gpsTracking.currentLat : null,
+      lon: isGpsActive ? gpsTracking.currentLon : null,
+      headingDeg: gpsTracking.headingDeg,
+      speedKnots: gpsTracking.speedKnots,
+      timestamp: new Date().toISOString(),
+      isAvailable: isGpsActive,
+    };
+
+    const targetBerg =
+      (selectedHazardId && icebergs?.find((b) => b.id === selectedHazardId)) ||
+      (icebergs && icebergs.length > 0 ? icebergs[0] : null);
+
+    const freshnessState: FreshnessState =
+      connectionState === 'OFFLINE' && offlineSnapshot?.syncTimestamp
+        ? 'STALE'
+        : unifiedEnvironment?.alignmentStatus === 'DEGRADED' || unifiedEnvironment?.alignmentStatus === 'UNAVAILABLE'
+        ? 'STALE'
+        : unifiedEnvironment?.alignmentStatus === 'PARTIALLY ALIGNED'
+        ? 'AGING'
+        : 'FRESH';
+
+    const confLevel: ConfidenceLevel = (decisionConfidence?.overallLevel as ConfidenceLevel) || 'HIGH';
+    const mode: NavigationDataMode = targetBerg && !targetBerg.isSynthetic ? 'REAL' : 'SIMULATED';
+
+    return evaluateNavigationAlerts({
+      gpsState,
+      activeRoute,
+      vessel: selectedVessel || null,
+      hazards: hazardEvaluation?.encounters || icebergs || null,
+      seaIceExposure: hazardEvaluation?.seaIceRouteSummary || null,
+      confidenceLevel: confLevel,
+      uncertaintyRadiusNm: activeUncertaintyPanelData?.uncertaintyRadiusNm || targetBerg?.uncertaintyRadiusNm || 0.8,
+      freshnessState,
+      connectionState,
+      dataMode: mode,
+      provenance: targetBerg?.provenance?.source || (mode === 'REAL' ? 'USNIC / Copernicus Real Data' : 'Synthetic Antarctic Model'),
+    });
+  }, [
+    gpsTracking,
+    activeRoute,
+    selectedVessel,
+    hazardEvaluation,
+    icebergs,
+    activeUncertaintyPanelData,
+    connectionState,
+    offlineSnapshot,
+    unifiedEnvironment,
+    decisionConfidence,
+    selectedHazardId,
+  ]);
+
   // Persist environmental state to local storage when online / update snapshot
   useEffect(() => {
     let isMounted = true;
@@ -530,6 +592,13 @@ export const NavigationView: React.FC = () => {
 
       {/* Phase 13B — Route Resilience & Counterfactual Analysis Panel */}
       <RouteResiliencePanel evaluationResult={resilienceResult} />
+
+      {/* Phase 14B — GPS Tracking & Navigation Alert Panel */}
+      <NavigationAlertPanel
+        evaluationResult={navigationAlertResult}
+        connectionState={connectionState}
+        gpsAvailable={gpsTracking.isSimulating || (gpsTracking.currentLat !== 0 && gpsTracking.currentLon !== 0)}
+      />
 
       {/* Main Split: Center Interactive Map + Right Conning Telemetry Panel */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-[500px] border border-slate-200 rounded-lg bg-white shadow-xs">

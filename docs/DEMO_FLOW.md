@@ -837,6 +837,40 @@ This document provides the exact sequence of actions to demonstrate the full CRY
 - **JUDGE-FACING STATEMENT:**
   > *"CRYO NAV does not assume its forecast is perfect or claim guaranteed safety. It evaluates how sensitive the active route is to plausible environmental perturbations and provides transparent engineering decision support while leaving full operational authority with the navigator."*
 
+---
+
+## PHASE 14 GPS TRACKING & NAVIGATION ALERTING UI DEMONSTRATION (PHASE 14B)
+
+### Step 37: Phase 14B GPS Tracking & Navigation Alerting UI Navigation Integration
+
+- **WHAT WAS BUILT:**
+  Controlled integration of Phase 14A Navigation Alert Engine (`navigationAlertEngine.ts`) and Phase 14B Navigation Alert Panel (`NavigationAlertPanel.tsx`) into the active Live Navigation view (`NavigationView.tsx`).
+
+- **WHERE in website:**
+  Live Navigation & Vessel Conning Station (`activeView: 'navigation'`)
+
+- **INTEGRATION ARCHITECTURE:**
+  `GPS Tracking State + Active Route + Vessel Profile + Hazard Encounters + Environmental State + Uncertainty + Connectivity` $\rightarrow$ `evaluateNavigationAlerts(...)` $\rightarrow$ `NavigationAlertPanel.tsx` $\rightarrow$ `Navigator Alert Review`
+
+- **JUDGE DEMO FLOW:**
+  1. **Open Live Navigation:** Click **"Live Navigation"** on sidebar (`activeView: 'navigation'`).
+  2. **Observe Navigation Alerts Panel:** Locate **NAVIGATION ALERTS & OPERATIONAL ADVISORIES** panel positioned in the navigation conning station.
+  3. **Inspect Alert Counter Summaries:** Review total active alerts, critical alert count, warning count, advisory count, and info count badges.
+  4. **Inspect GPS Tracking Status:** Observe GPS availability badge (`GPS AVAILABLE` / `GPS UNAVAILABLE`), position freshness timestamp, route deviation (XTE), and waypoint deviation.
+  5. **Inspect Connectivity State:** Observe operational connectivity status (`ONLINE`, `LIMITED`, `OFFLINE`, or `SYNCING`). Note that `OFFLINE` is represented as an operational condition rather than automatically becoming a critical hazard.
+  6. **Inspect Structured Alert Cards:** Expand active alert items sorted deterministically by severity (`CRITICAL`, `WARNING`, `ADVISORY`, `INFO`):
+     - Severity badge, alert type, timestamp, and alert title/message.
+     - Source component (e.g. `GPS_TRACKING`, `HAZARD_ENCOUNTER`, `UNCERTAINTY_ENGINE`, `OFFLINE_STORAGE`, etc.).
+     - Affected entity (route, waypoint, or hazard ID when available).
+     - Data provenance (`REAL`, `SIMULATED`, `HYBRID`, or `UNAVAILABLE`).
+  7. **Verify Operational Language:** Confirm neutral navigation language (e.g. *"Navigator review advised"*) without ungrounded safety claims or "guaranteed collision" language.
+  8. **Verify Authority Disclaimer & Zero Autonomous Control:** Confirm prominent decision support disclaimer:
+     - *"CRYO NAV provides decision support. Vessel control and route changes remain with the navigator."*
+  9. **Verify Route & Vessel Control Immutability:** Confirm that no route replanning, speed change, heading change, external notification, or automated vessel action occurs.
+
+- **JUDGE-FACING STATEMENT:**
+  > *"CRYO NAV aggregates telemetry, position tracking, hazard encounters, and system status into structured operational alerts using deterministic engine evaluation. It presents severity-coded advisories with complete data provenance while maintaining strict decision-support boundaries."*
+
 
 
 
