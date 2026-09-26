@@ -17,6 +17,8 @@ import {
   ArrowRight,
 } from 'lucide-react';
 
+import { VoyageStatePanel } from '../components/navigation/VoyageStatePanel';
+
 export const NavigationView: React.FC = () => {
   const {
     selectedVessel,
@@ -55,48 +57,12 @@ export const NavigationView: React.FC = () => {
     .sort((a, b) => a.realTimeDistanceNm - b.realTimeDistanceNm)[0];
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50">
-      {/* Top Header & Simulation Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 bg-white border-b border-slate-200 shrink-0 shadow-xs">
-        <div>
-          <h1 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-            <Navigation className="w-5 h-5 text-slate-800" />
-            Live Navigation & Vessel Conning Station
-          </h1>
-          <p className="text-[11px] text-slate-500 font-mono">
-            {selectedVessel.name} ({selectedVessel.iceClass}) • Destination: {mission.destination.name.split('(')[0]}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {!gpsTracking.isSimulating ? (
-            <button
-              onClick={startGpsSimulation}
-              className="px-3.5 py-1.5 rounded text-xs font-bold uppercase tracking-wider bg-slate-900 hover:bg-slate-800 text-white flex items-center gap-1.5 transition shadow-xs"
-            >
-              <Play className="w-3.5 h-3.5 fill-white" /> Start Live Voyage
-            </button>
-          ) : (
-            <button
-              onClick={pauseGpsSimulation}
-              className="px-3.5 py-1.5 rounded text-xs font-bold uppercase tracking-wider bg-amber-700 hover:bg-amber-800 text-white flex items-center gap-1.5 transition shadow-xs"
-            >
-              <Pause className="w-3.5 h-3.5 fill-white" /> Pause Track
-            </button>
-          )}
-
-          <button
-            onClick={resetGpsSimulation}
-            title="Reset vessel position to Drake Passage Entry"
-            className="p-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50 space-y-2 p-2 sm:p-3 overflow-y-auto">
+      {/* Phase 8A — Voyage State Monitoring Panel */}
+      <VoyageStatePanel />
 
       {/* Main Split: Center Interactive Map + Right Conning Telemetry Panel */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-[500px] border border-slate-200 rounded-lg bg-white shadow-xs">
         {/* Real Interactive Antarctic Map */}
         <div className="flex-1 flex flex-col h-[50vh] lg:h-full min-h-[360px] relative overflow-hidden">
           <AntarcticMap />

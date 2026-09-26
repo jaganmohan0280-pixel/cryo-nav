@@ -13,6 +13,7 @@ import { runSentinel1ProcessingTests } from './sentinel1Processing.test';
 import { runSentinel1FeatureExtractorTests } from './sentinel1FeatureExtractor.test';
 import { runSarCandidateConfirmationTests } from './sarCandidateConfirmation.test';
 import { runAreaSarAnalysisTests } from './areaSarAnalysis.test';
+import { runVoyageStateTests } from './voyageState.test';
 
 // 1. Run Phase 4 Decision Confidence Tests (auto-runs on import)
 import './confidenceEngine.test';
@@ -35,6 +36,7 @@ p7bPromise.then(async (p7bResult) => {
   const p7c3Result = await runSentinel1FeatureExtractorTests();
   const p7c4Result = await runSarCandidateConfirmationTests();
   const p7c4UxResult = runAreaSarAnalysisTests();
+  runVoyageStateTests();
 
   if (
     p5Result.failed > 0 ||
@@ -50,7 +52,7 @@ p7bPromise.then(async (p7bResult) => {
     process.exit(1);
   } else {
     console.log('========================================================================================');
-    console.log('ALL PHASE 4, PHASE 5, PHASE 6, PHASE 7A, 7B, 7C.1, 7C.2, 7C.3, 7C.4 & 7C.4-UX TESTS PASSED CLEANLY!');
+    console.log('ALL PHASE 4, 5, 6, 7A, 7B, 7C.1, 7C.2, 7C.3, 7C.4, 7C.4-UX & 8A VOYAGE STATE TESTS PASSED!');
     console.log('========================================================================================\n');
   }
 });
