@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { AntarcticMap } from '../components/Map/AntarcticMap';
 import { TimelineSlider } from '../components/TimelineSlider';
@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 
 import { VoyageStatePanel } from '../components/navigation/VoyageStatePanel';
+import { HazardEncounterPanel } from '../components/navigation/HazardEncounterPanel';
+import { evaluateAllRouteHazards } from '../services/hazardEncounterEngine';
 
 export const NavigationView: React.FC = () => {
   const {
@@ -28,6 +30,9 @@ export const NavigationView: React.FC = () => {
     pauseGpsSimulation,
     resetGpsSimulation,
     icebergs,
+    seaIceCells,
+    recommendedRoute,
+    routes,
     replanRoutes,
     weather,
     decisionConfidence,
@@ -38,6 +43,16 @@ export const NavigationView: React.FC = () => {
   } = useApp();
 
   const [showFactorsModal, setShowFactorsModal] = useState(false);
+  const [selectedHazardId, setSelectedHazardId] = useState<string | null>(null);
+
+  const activeRoute = recommendedRoute || (routes && routes.length > 0 ? routes[0] : null);
+
+  const hazardEvaluation = useMemo(() => {
+    if (!activeRoute) return null;
+    return evaluateAllRouteHazards(activeRoute, icebergs || [], seaIceCells || [], selectedVessel, {
+      cruisingSpeedKnots: selectedVessel?.cruisingSpeedKnots || 12.0,
+    });
+  }, [activeRoute, icebergs, seaIceCells, selectedVessel]);
 
   // Find nearest iceberg to current GPS position
   const nearestBerg = icebergs
@@ -60,6 +75,13 @@ export const NavigationView: React.FC = () => {
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50 space-y-2 p-2 sm:p-3 overflow-y-auto">
       {/* Phase 8A — Voyage State Monitoring Panel */}
       <VoyageStatePanel />
+
+      {/* Phase 8B — Hazard / Encounter Intelligence Panel */}
+      <HazardEncounterPanel
+        evaluationResult={hazardEvaluation}
+        selectedHazardId={selectedHazardId}
+        onSelectHazard={(id) => setSelectedHazardId(id)}
+      />
 
       {/* Main Split: Center Interactive Map + Right Conning Telemetry Panel */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-[500px] border border-slate-200 rounded-lg bg-white shadow-xs">
