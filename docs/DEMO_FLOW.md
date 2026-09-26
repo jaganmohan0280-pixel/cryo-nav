@@ -685,6 +685,43 @@ This document provides the exact sequence of actions to demonstrate the full CRY
 - **JUDGE-FACING STATEMENT:**
   > *"CRYO NAV does not treat a prediction as a precise point. Instead, when confidence decreases, data becomes stale, connectivity is lost, or forecast horizon increases, the modeled spatial uncertainty zone expands deterministically, making forecast risk operationally visible to the navigator without mutating underlying routes."*
 
+---
+
+## PHASE 11 DECISION-IMPACT DATA ACQUISITION UI DEMONSTRATION (PHASE 11B)
+
+### Step 33: Phase 11 Decision-Impact Data Acquisition UI Demonstration Flow
+
+- **WHERE in website:** Decision-Impact Acquisition Panel / Data Acquisition View
+- **EXACT STEP-BY-STEP DEMO SEQUENCE:**
+
+1. **Open Decision-Impact Acquisition UI**: Inspect `DecisionImpactAcquisitionPanel` component.
+2. **Inspect Navigation Decision Overview**:
+   - **Current Route:** Displays active recommended route corridor (`Recommended Safe Route`).
+   - **Decision Sensitivity:** Displays deterministic stability state (`SENSITIVE` / `HIGHLY_SENSITIVE`).
+   - **Current Uncertainty:** Displays active uncertainty zone description (`Uncertainty Zone (2.5 nm radius)`).
+   - **Connectivity:** Displays active connection state (`ONLINE` / `LIMITED` / `OFFLINE` / `SYNCING`).
+   - **Available Bandwidth:** Displays current downlink bandwidth budget (e.g. `100 MB available`).
+3. **Inspect Ranked Data Acquisition Priorities**:
+   - Review ranked candidate products sorted deterministically by **Engineering Priority Index (0–100)**.
+   - Note priority levels (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`) and explicit labeling: *"Engineering Priority Index (NOT a hazard or collision probability)"*.
+4. **Inspect Candidate Card Details**:
+   - **Affected Decision:** Shows specific route choice & navigation corridor affected.
+   - **Uncertainty Addressed:** Shows spatial/temporal uncertainty zone addressed.
+   - **Expected Decision Impact:** Shows expected effect on decision stability (e.g. *"Potential route recommendation shift or corridor risk reduction"*).
+   - **Expected Uncertainty Reduction:** Displays percentage reduction (e.g. `-65%`).
+   - **Bandwidth Budget Fit:** Clearly distinguishes `Within current budget` vs `Exceeds current budget`.
+   - **Reason for Priority:** Displays clear human-readable explanation of why the product was prioritized.
+5. **Inspect SAR Evidence & Provenance Disclosures**:
+   - **SAR Terminology:** Verified use of `"SAR evidence/candidate region"` with zero false certainty language (`"confirmed iceberg"` is strictly avoided).
+   - **Provenance:** Preserves `REAL`, `SIMULATED`, `HYBRID` provenance metadata.
+6. **Inspect Connectivity & Budget State Handling**:
+   - In `OFFLINE` state: Candidates display `Ready when connected` status.
+   - In `LIMITED` state: Bandwidth budget constraints evaluate product size against bandwidth limit without performing unrequested downloads.
+
+- **JUDGE-FACING STATEMENT:**
+  > *"CRYO NAV does not download everything. Instead, it evaluates discoverable satellite products against route sensitivity and bandwidth limits to identify which specific acquisitions can actually alter the active navigation decision."*
+
+
 
 
 
