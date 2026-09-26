@@ -23,7 +23,7 @@ import { evaluateAllRouteHazards } from '../services/hazardEncounterEngine';
 import { OfflineStatusPanel, OfflineStatusPanelProps } from '../components/navigation/OfflineStatusPanel';
 import { connectivityStateEngine } from '../services/connectivityStateEngine';
 import { offlineStorageEngine, OfflineNavigationSnapshot } from '../services/offlineStorageEngine';
-import { ConnectionState, FreshnessState } from '../types';
+import { ConnectionState, FreshnessState, ConfidenceLevel } from '../types';
 import {
   evaluateUncertainty,
   evaluateBatchUncertainty,
@@ -44,6 +44,12 @@ import {
   ReassessmentDataMode,
 } from '../services/decisionReassessmentEngine';
 import { DecisionReassessmentPanel } from '../components/navigation/DecisionReassessmentPanel';
+import {
+  analyzeRouteResilience,
+  RouteResilienceEvaluationResult,
+  DataMode,
+} from '../services/routeResilienceEngine';
+import { RouteResiliencePanel } from '../components/navigation/RouteResiliencePanel';
 
 export const NavigationView: React.FC = () => {
   const {
@@ -343,6 +349,26 @@ export const NavigationView: React.FC = () => {
     return evalResult;
   }, [currentSnapshot, activeRoute]);
 
+  // Phase 13B — Route Resilience & Counterfactual Evaluation
+  const resilienceResult = useMemo<RouteResilienceEvaluationResult | null>(() => {
+    if (!activeRoute) return null;
+
+    const confLevel = (currentSnapshot?.confidenceLevel as ConfidenceLevel) || 'HIGH';
+    const mode = (currentSnapshot?.dataMode as DataMode) || 'SIMULATED';
+
+    return analyzeRouteResilience({
+      route: activeRoute,
+      vessel: selectedVessel || undefined,
+      seaIceCells: seaIceCells || [],
+      icebergs: icebergs || [],
+      baselineRiskIndex: activeRoute.riskIndex,
+      baselineUncertaintyScore: activeRoute.uncertaintyScore,
+      confidenceLevel: confLevel,
+      dataMode: mode,
+      provenance: activeRoute.assumptions?.[0] || (mode === 'REAL' ? 'Copernicus / USNIC Real Data' : 'Synthetic Antarctic Model'),
+    });
+  }, [activeRoute, selectedVessel, seaIceCells, icebergs, currentSnapshot]);
+
   // Persist environmental state to local storage when online / update snapshot
   useEffect(() => {
     let isMounted = true;
@@ -501,6 +527,9 @@ export const NavigationView: React.FC = () => {
 
       {/* Phase 12C — Decision Reassessment Integration Panel */}
       <DecisionReassessmentPanel result={reassessmentResult} />
+
+      {/* Phase 13B — Route Resilience & Counterfactual Analysis Panel */}
+      <RouteResiliencePanel evaluationResult={resilienceResult} />
 
       {/* Main Split: Center Interactive Map + Right Conning Telemetry Panel */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-[500px] border border-slate-200 rounded-lg bg-white shadow-xs">
