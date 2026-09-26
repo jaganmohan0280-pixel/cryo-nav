@@ -1,0 +1,92 @@
+# CRYO NAV — System Status Audit Report
+
+**Current Operational Phase:** Phase 7C.4-UX Redesign — Area-Centric SAR Analysis (CONDITIONALLY VERIFIED)  
+**Last Audit Timestamp:** September 26, 2026  
+**Baseline Model Notice:** Cryospheric models, sea-ice grids, and iceberg drift algorithms in DEMO MODE use **synthetic baseline models for demonstration and decision support testing**. In REAL MODE, actual Copernicus Marine sea-ice observations, surface ocean hydrodynamics, USNIC Antarctic iceberg observations, ECMWF IFS weather forecasts, **Copernicus Data Space Ecosystem (CDSE) STAC satellite catalogue items** (`cdseStacAdapter.ts`), **Server-Side Satellite Product Acquisition & Local Cache** (`satelliteCache.ts`, `POST /api/satellite/acquire`), **Sentinel-1 Product Validation & SAFE Ingestion** (`sentinel1Validator.ts`, `POST /api/satellite/validate`), **Sentinel-1 SAR Preprocessing Pipeline** (`sentinel1Processor.ts`, `POST /api/satellite/process`), **Sentinel-1 SAR Feature Extraction & Quality Filtering Engine** (`sentinel1FeatureExtractor.ts`, `POST /api/satellite/analyze-features`), **Phase 7C.4 Multi-Source Evidence Confirmation Engine** (`sarCandidateConfirmation.ts`, `POST /api/satellite/confirm-candidates`), and **Phase 7C.4-UX Area-Centric SAR Analysis Engine** (`areaSarAnalysisEngine.ts`) are active. Acquired satellite products are container-inspected, manifest-parsed, persisted to local cache (`.val.json`), radiometrically calibrated ($\sigma^0\text{ linear} \rightarrow \sigma^0_{\text{dB}}$), persisted (`.processing.json`), decoded directly from disk as Float32 binary rasters (`decodeSarRaster`), filtered for physical candidate quality (morphological noise suppression, linear contrast ratio, local background variability, convex hull solidity), analyzed for interpretable SAR target candidates (`.candidates.json`), evaluated against multi-source evidence into evidence-based confirmation records (`.confirmation.json`), and presented as area-centric evidence aggregates without cluttering the main navigation map (`STATUS: UNCONFIRMED / SUPPORTED / REFERENCE_MATCHED / CONFIRMATION_UNAVAILABLE`, `Candidate is an evidence-assessed target. Independent ground-truth confirmation has not been performed`). Verified by 159 automated unit tests (`npm run test`).
+
+
+---
+
+## Component Status Matrix
+
+| Component Domain | Status | Tested Workflow | Operational Summary & Details |
+| :--- | :--- | :--- | :--- |
+| **UI Framework** | **WORKING** | Dashboard & Views | React 19 + Vite dashboard featuring 9 active view tabs, responsive layout, dark/light theme accents, and custom micro-animations. |
+| **Interactive Map** | **WORKING** | Leaflet GIS | Interactive Leaflet GIS map displaying vessel position, route corridors, sea-ice field, iceberg observations, currents, wind/weather, uncertainty, and navigation hazards. SAR candidate dots are removed from default visualization. Includes `[ ANALYZE AREA ]` and `[ ANALYZE AHEAD ]` workflows. |
+| **Mission Planning** | **WORKING** | Origin & Dest Setup | Full mission configuration interface supporting start/destination coordinates, departure times, waypoints, exclusion zones, and priority options. |
+| **Vessel Profiles** | **WORKING** | Fleet Registry | Fleet management interface pre-configured with 6 research vessel profiles (e.g. RRS Sir David Attenborough, RV Nathaniel B. Palmer) with Polar Class ratings, speed, draft, and fuel burn metrics. |
+| **Sea-Ice Adapter** | **WORKING (REAL)** | Copernicus Marine NRT | Real sea-ice data adapter (`copernicusSeaIceAdapter.ts`) fetching live OSI-401-d / OSI-408-a observations via Express `/api/environment/sea-ice`, validated & normalized to `SeaIceCell[]` with `DataProvenance`. |
+| **Ocean Current Adapter** | **WORKING (REAL)** | Copernicus NEMO 3D | Real ocean current data adapter (`copernicusOceanCurrentAdapter.ts`) fetching live NEMO 3D hydrodynamics (`GLOBAL_ANALYSISFORECAST_PHY_001_024`) via `/api/environment/ocean-currents`, calculating surface vector components ($u, v \rightarrow \text{knots}, \text{heading}$), validated & normalized to `OceanCurrentCell[]` with `DataProvenance`. |
+| **Iceberg Adapter** | **WORKING (REAL)** | USNIC Iceberg Catalog | Real USNIC iceberg database adapter (`usnicIcebergAdapter.ts`) fetching live Antarctic iceberg observations via `/api/environment/icebergs`, validated & normalized to `IcebergDetection[]` with `DataProvenance`. |
+| **Weather Forecast Adapter** | **WORKING (REAL)** | ECMWF IFS Forecast | Real ECMWF IFS weather forecast adapter (`ecmwfWeatherAdapter.ts`) fetching 0.25° global forecasts via `/api/environment/weather`, validated & normalized to `WeatherCondition` with `DataProvenance`. |
+| **CDSE STAC Satellite Adapter** | **WORKING (REAL)** | CDSE STAC Catalogue API | Real CDSE STAC adapter (`cdseStacAdapter.ts`) querying `https://stac.dataspace.copernicus.eu/v1/search` via `/api/satellite/catalogue`, fetching live Sentinel-1 product metadata normalized to `SatelliteCatalogueItem[]` with `DataProvenance`. Discovered items are acquired & cached via Phase 7B pipeline. Verified by 15/15 unit tests. |
+| **Satellite Product Acquisition & Local Cache** | **WORKING (REAL)** | Server Download & Cache | Phase 7B acquisition layer (`POST /api/satellite/acquire`, `satelliteCache.ts`) streaming CDSE products over HTTPS, calculating SHA-256 integrity digests, persisting JSON metadata records to `./cache/satellite/`, and displaying `PROCESSING: NOT YET PERFORMED`. Verified by 21/21 unit tests. |
+| **Sentinel-1 Product Validation & SAFE Ingestion** | **WORKING (REAL)** | Container & Manifest Validation | Phase 7C.1 validation engine (`sentinel1Validator.ts`, `POST /api/satellite/validate`) inspecting SAFE ZIP containers, scanning `measurement/`, `annotation/`, `preview/`, `support/` paths, parsing hardened XXE-immune XML manifests (`manifest.safe`), extracting Sentinel-1 metadata (Platform, Instrument, Product Type, Mode, Polarization, Sensing Window, Orbit Number), persisting validation records (`.val.json`), supporting offline validation, and displaying `READY FOR SAR PROCESSING` with explicit scientific disclaimers (`SAR PROCESSING: NOT YET PERFORMED`, `ICEBERG DETECTION: NOT YET PERFORMED`). Verified by 12/12 unit tests. |
+| **Sentinel-1 SAR Preprocessing Pipeline** | **WORKING (REAL)** | Measurement & Calibration | Phase 7C.2 preprocessing engine (`sentinel1Processor.ts`, `POST /api/satellite/process`) extracting measurement rasters, inspecting GeoTIFF header tags (width, height, bands, datatype, CRS, resolution), performing radiometric calibration ($\sigma^0 \rightarrow \sigma^0_{\text{dB}}$ with $-50\text{ dB}$ log zero floor), computing raster statistics ($\text{min}, \text{max}, \text{mean}, \text{stdDev}$), writing processed Float32 binary rasters to disk (`_PROCESSED_RASTER.bin`), persisting processing records (`.processing.json`), and displaying `STATUS: PROCESSED` and `CALIBRATION: RADIOMETRIC SIGMA-0 (dB)` with explicit scientific disclaimers (`ICEBERG DETECTION: NOT PERFORMED`, `TERRAIN CORRECTION: NOT PERFORMED`). Verified by 15/15 unit tests. |
+| **Sentinel-1 SAR Feature Extraction & Quality Filtering Engine** | **WORKING (REAL)** | Feature Extraction & Quality Filtering | Phase 7C.3-SQ feature extraction engine (`sentinel1FeatureExtractor.ts`, `POST /api/satellite/analyze-features`) decoding real Float32 binary rasters (`decodeSarRaster`), masking nodata/invalid pixels (-9999), suppressing binary morphological noise, filtering minimum candidate size (`minCandidatePixels`), evaluating linear backscatter contrast ratio, measuring local background homogeneity, computing extended shape convexity, calculating Candidate Ranking Index (0-100 score), georeferencing to $(lat, lon)$, persisting candidate analysis records (`.candidates.json`), tracking machine-readable rejection reasons (`TOO_SMALL`, `LOW_CONTRAST`, `LOW_SHAPE_COHERENCE`, `HIGH_BACKGROUND_VARIABILITY`), and displaying candidate cards & map markers with strict disclaimers (`STATUS: UNCONFIRMED SAR CANDIDATE`, `ICEBERG CONFIRMATION: NOT YET PERFORMED`). Verified by 40/40 unit tests. |
+| **SAR Candidate Evidence & Confirmation Engine** | **WORKING (REAL)** | Multi-Source Evidence Evaluation | Phase 7C.4 confirmation engine (`sarCandidateConfirmation.ts`, `POST /api/satellite/confirm-candidates`) evaluating independent multi-source evidence (SAR features, real Copernicus sea-ice context, real USNIC iceberg proximity matching, multi-temporal persistence) around Phase 7C.3 SAR candidates, assigning explicit confirmation statuses (`UNCONFIRMED`, `SUPPORTED`, `REFERENCE_MATCHED`, `CONFIRMATION_UNAVAILABLE`), computing Candidate Evidence Index (0-100 prioritization aid), persisting confirmation summary records (`.confirmation.json`), and rendering Candidate Evidence cards & map popups with display filters and complete source provenance traceability. Verified by 10/10 unit tests. |
+| **Area-Centric SAR Analysis** | **WORKING (REAL)** | Area Selection & Condition Report | Phase 7C.4-UX redesign eliminating candidate dot clutter on the main map. Navigation map stays clean by default. User selects an area or clicks [Analyze Area] / [Analyze Ahead] to query real Sentinel-1 coverage (AVAILABLE / NOT AVAILABLE), execute candidate filtering inside the selected area, generate structured Area Condition Reports, and view candidate evidence on demand. Verified by 6/6 unit tests (159 total tests). |ts. |
+
+
+| **Environmental Alignment Engine** | **WORKING (REAL & DEMO)** | Unified Contract & Quality | Unified environmental data contract & alignment engine (`environmentalState.ts`) unifying all 4 environmental streams under a deterministic analysis time (`analysisTime`), evaluating temporal offsets, spatial coverage, and source quality (`EnvironmentalAlignmentResult`). |
+| **Decision Confidence Engine** | **WORKING (REAL & DEMO)** | Scientific Confidence | Deterministic Decision Confidence Engine (`confidenceEngine.ts`) evaluating 10 factor categories (`HIGH`, `MEDIUM`, `LOW`, `CRITICAL`), generating primary limiting factors, recommended verification actions, and recommendation blocking flags. Verified by 20/20 automated unit tests (`npm run test`). |
+| **Counterfactual & Sensitivity Engine** | **WORKING (REAL & DEMO)** | Decision Stability | What-If decision stability analysis engine (`counterfactualEngine.ts`) testing route stability (`ROBUST`, `SENSITIVE`, `HIGHLY_SENSITIVE`) across 9 standard scenario perturbations. Verified by 16/16 automated unit tests. |
+| **Decision-Impact Acquisition Engine** | **WORKING (REAL & DEMO)** | Data Prioritization | Value-of-Information (VoI) heuristic prioritization engine (`decisionImpactEngine.ts`) connecting confidence limiting factors, counterfactual sensitivity, route corridor overlap, and bandwidth constraints into ranked data priorities (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`) and 5-minute acquisition priority window. Verified by 18/18 automated unit tests. |
+| **GPS Tracking** | **WORKING** | Vessel Simulation | Real-time vessel position simulation loop with cross-track error, heading, speed multiplier, track history, and waypoints interpolation. |
+| **Alerting System** | **WORKING** | Active Alert Log | Interactive alerting banner and log tracking iceberg proximity, route deviation, data freshness drops, and decision changes. |
+| **Scenario Simulation** | **WORKING** | Perturbation Controls | What-if scenario controls enabling real-time perturbation of wind speed, iceberg drift offset %, and sea-ice severity multipliers. |
+| **AI Assistant** | **WORKING** | Gemini LLM Proxy | Express proxy (`/api/gemini/assistant`) integrating Google Gemini model with system instruction grounding and local rule-based fallback when offline. |
+| **Real Antarctic Data** | **PARTIAL** | Open-Meteo Live Feed | Ingesting live Southern Ocean weather/marine telemetry via Open-Meteo & ECMWF API (`/api/telemetry/live`); real data reconnaissance completed in Phase 2A. |
+| **Persistent Backend** | **PLANNED** | Database Layer | Currently using Node.js Express server; persistent database storage (PostgreSQL + PostGIS) planned for future phase. |
+| **Offline Operation** | **PARTIAL** | Memory & Fallbacks | In-memory fallback active; persistent IndexedDB caching and client-side model execution planned for Phase 9. |
+| **Scientific Validation** | **PLANNED** | Historical Backtesting | Automated backtesting pipeline against historical satellite buoy drift tracks planned for Phase 10. |
+| **Security** | **WORKING** | Clean Credentials | Phase 0 security audit completed. All hardcoded credentials removed, `.env.example` cleaned to use placeholders, and environment variables enforced. |
+| **Documentation** | **WORKING** | System Docs & Recon | Full system documentation suite established in `docs/` (`REQUIREMENTS.md`, `ARCHITECTURE.md`, `IMPLEMENTATION_PLAN.md`, `PROJECT_STATUS.md`, `VALIDATION.md`, `DEMO_FLOW.md`, `DATA_SOURCE_MATRIX.md`, `REAL_DATA_STRATEGY.md`, `DATA_PROVENANCE.md`, `DATA_ADAPTER_PLAN.md`, `DATA_FAILURE_POLICY.md`). |
+
+---
+
+## Real Data Integration Status (Phase 2A Summary)
+
+1. **Current Environmental Baseline:** The environmental state in CRYO NAV is currently driven by baseline synthetic datasets, **except** live weather and marine telemetry which is queried dynamically from real external feeds.
+2. **Operational Real Telemetry:** Open-Meteo & ECMWF polar weather and marine telemetry (`/api/telemetry/live`) is operational live external data.
+3. **Data Labeling Integrity:** All synthetic environmental fields (sea ice grids, iceberg tracks, candidate swaths) are explicitly labeled as **DEMO / SYNTHETIC DATA** and are NOT presented as real operational observations.
+4. **Phase 2A Reconnaissance Complete:** Established verified authoritative real-world Antarctic data sources:
+   - **Sea Ice:** Copernicus Marine NRT (`SEAICE_GLO_SEAICE_L4_NRT_OBSERVATIONS_011_001`) & NSIDC Sea Ice Index.
+   - **Icebergs:** US National Ice Center (USNIC) Antarctic Iceberg Database & BYU Scatterometer Tracking Archive.
+   - **Ocean Hydrodynamics:** Copernicus Marine NEMO 3D Model (`GLOBAL_ANALYSISFORECAST_PHY_001_024`).
+   - **Satellite Swath Metadata:** Copernicus Data Space Ecosystem (CDSE) STAC API (`https://stac.dataspace.copernicus.eu/v1`).
+5. **Adapter Phasing:** Actual data adapter code implementations begin in Phase 2B. Phase 2A is strictly research and architectural documentation.
+
+---
+
+## Phase 2 Data Integration Preparation
+
+In Phase 1 & 2A, we audited all points of entry where synthetic environmental data connects to the application to prepare clean abstraction points for Phase 2 real-data adapters:
+
+### 1. Synthetic Data Entry Points
+- **Primary Source File:** [`src/data/syntheticAntarcticData.ts`](file:///C:/Users/JAGAN%20MOHAN/OneDrive/Desktop/cryo-nav%20-%20Copy/cryo-nav%20-%20Copy/src/data/syntheticAntarcticData.ts)
+  - `INITIAL_VESSELS`: Vessel profile metadata definitions.
+  - `DEFAULT_MISSION`: Default start, destination, and research waypoints.
+  - `INITIAL_ICEBERGS`: Tracked tabular icebergs (e.g. ICB-A76A, ICB-902) with coordinates, dimensions, drift vectors, and initial trajectories.
+  - `generateSyntheticSeaIce()`: 49-cell spatial sea-ice concentration matrix.
+  - `SYNTHETIC_WEATHER` & `SYNTHETIC_OCEAN_CURRENTS`: Fallback atmospheric/oceanic fields.
+  - `INITIAL_SATELLITE_PRODUCTS`: Candidate satellite observation swaths (e.g. Sentinel-1C SAR).
+- **State Initialization:** Loaded into master React Context in [`src/context/AppContext.tsx`](file:///C:/Users/JAGAN%20MOHAN/OneDrive/Desktop/cryo-nav%20-%20Copy/cryo-nav%20-%20Copy/src/context/AppContext.tsx).
+
+### 2. Consuming Components & Services
+- **Services Layer:**
+  - `seaIceModel.ts` (consumes raw sea-ice cells and weather to compute 72h forecasts).
+  - `trajectoryModel.ts` (consumes raw iceberg detections, weather, and currents to calculate drift points).
+  - `riskEngine.ts` (samples sea ice cells and iceberg tracks to calculate composite risk).
+  - `routingEngine.ts` (evaluates waypoints against sea-ice cells and icebergs to generate SAFEST, BALANCED, and FASTEST routes).
+  - `decisionImpactEngine.ts` (evaluates satellite footprint coverage against route waypoints and iceberg positions).
+- **UI Components & Views:**
+  - `AntarcticMap.tsx` (renders Leaflet vector overlays for sea-ice cells, iceberg markers, trajectories, and route polylines).
+  - `IcebergsView.tsx`, `SeaIceView.tsx`, `DataAcquisitionView.tsx`, `NavigationView.tsx`, `MissionPlanningView.tsx`.
+
+### 3. Target Interfaces for Phase 2 Real-Data Adapters
+When Phase 2 real Antarctic satellite data adapters are introduced, they will replace initial state seeds by implementing these existing TypeScript interfaces defined in [`src/types.ts`](file:///C:/Users/JAGAN%20MOHAN/OneDrive/Desktop/cryo-nav%20-%20Copy/cryo-nav%20-%20Copy/src/types.ts):
+- `SeaIceCell`: Real-time Copernicus Marine (CMEMS) SAR sea-ice concentration grid adapter.
+- `IcebergDetection`: US National Ice Center (NIC) & Sentinel-1 SAR iceberg catalog ingestion adapter.
+- `WeatherCondition`: ECMWF ERA5 / Open-Meteo live polar atmospheric feed adapter (already operational in baseline).
+- `SatelliteProduct`: Copernicus Data Space STAC API product query adapter.

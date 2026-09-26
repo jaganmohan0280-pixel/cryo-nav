@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Production build outputs
+dist/
+build/
+coverage/
+
+# Logs & Cache
+*.log
+logs/
+.cache/
+cache/
+
+
+# Environment configuration
+.env
+.env.*
+!.env.example
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Deployment build artifacts
+.vercel
+.netlify/
