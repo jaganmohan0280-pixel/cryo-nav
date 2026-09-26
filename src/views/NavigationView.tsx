@@ -57,6 +57,13 @@ import {
   NavigationDataMode,
 } from '../services/navigationAlertEngine';
 import { NavigationAlertPanel } from '../components/navigation/NavigationAlertPanel';
+import {
+  evaluateModelValidationBatch,
+  PredictionRecord,
+  ObservationRecord,
+  ValidationDataMode as ModelValidationDataMode,
+} from '../services/modelValidationEngine';
+import { ModelValidationPanel } from '../components/navigation/ModelValidationPanel';
 
 export const NavigationView: React.FC = () => {
   const {
@@ -431,7 +438,86 @@ export const NavigationView: React.FC = () => {
     selectedHazardId,
   ]);
 
+  // Phase 15B — Continuous Model Validation Summaries
+  const { icebergValidationSummary, seaIceValidationSummary } = useMemo(() => {
+    const targetValidTime = new Date().toISOString();
+
+    const icebergPredictions: PredictionRecord[] = (icebergs || []).map((berg) => {
+      const isSynth = berg.isSynthetic;
+      const mode: ModelValidationDataMode = isSynth ? 'SIMULATED' : 'REAL';
+      return {
+        id: `pred-${berg.id}`,
+        modelType: 'ICEBERG_TRAJECTORY',
+        predictionTimestamp: berg.processingTime || berg.observationTime || targetValidTime,
+        validTime: targetValidTime,
+        predictedPosition: berg.predictedTrajectory && berg.predictedTrajectory.length > 0
+          ? { lat: berg.predictedTrajectory[0].lat, lon: berg.predictedTrajectory[0].lon }
+          : { lat: berg.lat, lon: berg.lon },
+        uncertaintyRadiusNm: berg.uncertaintyRadiusNm || 0.8,
+        provenance: berg.provenance?.source || berg.source || 'Iceberg Drift Engine v3.5',
+        dataMode: mode,
+      };
+    });
+
+    const icebergObservations: ObservationRecord[] = (icebergs || []).map((berg) => {
+      const isSynth = berg.isSynthetic;
+      const mode: ModelValidationDataMode = isSynth ? 'SIMULATED' : 'REAL';
+      return {
+        id: `pred-${berg.id}`,
+        modelType: 'ICEBERG_TRAJECTORY',
+        observationTimestamp: berg.observationTime || targetValidTime,
+        observedPosition: { lat: berg.lat, lon: berg.lon },
+        source: berg.source || 'USNIC Catalog / Marine Radar',
+        provenance: berg.provenance?.source || 'Observed Position',
+        dataMode: mode,
+      };
+    });
+
+    const seaIcePredictions: PredictionRecord[] = (seaIceCells || []).slice(0, 10).map((cell) => {
+      const isReal = cell.isRealData;
+      const mode: ModelValidationDataMode = isReal ? 'REAL' : 'SIMULATED';
+      return {
+        id: `pred-ice-${cell.id}`,
+        modelType: 'SEA_ICE',
+        predictionTimestamp: cell.timestamp || targetValidTime,
+        validTime: targetValidTime,
+        predictedValue: cell.predictedConcentration72h ?? cell.concentrationPercent,
+        uncertaintyMargin: cell.uncertainty || 5.0,
+        provenance: cell.provenance?.source || 'Sea-Ice Model v2.0',
+        dataMode: mode,
+      };
+    });
+
+    const seaIceObservations: ObservationRecord[] = (seaIceCells || []).slice(0, 10).map((cell) => {
+      const isReal = cell.isRealData;
+      const mode: ModelValidationDataMode = isReal ? 'REAL' : 'SIMULATED';
+      return {
+        id: `pred-ice-${cell.id}`,
+        modelType: 'SEA_ICE',
+        observationTimestamp: cell.timestamp || targetValidTime,
+        observedValue: cell.concentrationPercent,
+        source: cell.provenance?.source || 'Copernicus OSI SAF',
+        provenance: cell.provenance?.source || 'Satellite Sea-Ice Observation',
+        dataMode: mode,
+      };
+    });
+
+    const bergSummary = icebergPredictions.length > 0
+      ? evaluateModelValidationBatch(icebergPredictions, icebergObservations, 'ICEBERG_TRAJECTORY')
+      : null;
+
+    const iceSummary = seaIcePredictions.length > 0
+      ? evaluateModelValidationBatch(seaIcePredictions, seaIceObservations, 'SEA_ICE')
+      : null;
+
+    return {
+      icebergValidationSummary: bergSummary,
+      seaIceValidationSummary: iceSummary,
+    };
+  }, [icebergs, seaIceCells]);
+
   // Persist environmental state to local storage when online / update snapshot
+
   useEffect(() => {
     let isMounted = true;
     const syncLocalStorage = async () => {
@@ -598,6 +684,12 @@ export const NavigationView: React.FC = () => {
         evaluationResult={navigationAlertResult}
         connectionState={connectionState}
         gpsAvailable={gpsTracking.isSimulating || (gpsTracking.currentLat !== 0 && gpsTracking.currentLon !== 0)}
+      />
+
+      {/* Phase 15B — Continuous Model Validation Panel */}
+      <ModelValidationPanel
+        icebergValidationSummary={icebergValidationSummary}
+        seaIceValidationSummary={seaIceValidationSummary}
       />
 
       {/* Main Split: Center Interactive Map + Right Conning Telemetry Panel */}

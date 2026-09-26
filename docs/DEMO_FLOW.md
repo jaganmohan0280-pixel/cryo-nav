@@ -871,6 +871,37 @@ This document provides the exact sequence of actions to demonstrate the full CRY
 - **JUDGE-FACING STATEMENT:**
   > *"CRYO NAV aggregates telemetry, position tracking, hazard encounters, and system status into structured operational alerts using deterministic engine evaluation. It presents severity-coded advisories with complete data provenance while maintaining strict decision-support boundaries."*
 
+---
+
+## PHASE 15 CONTINUOUS MODEL VALIDATION UI DEMONSTRATION (PHASE 15B)
+
+### Step 38: Phase 15B Continuous Model Validation UI Navigation Integration
+
+- **WHAT WAS BUILT:**
+  Controlled integration of Phase 15A Continuous Model Validation Core Engine (`modelValidationEngine.ts`) and Phase 15B Model Validation Panel (`ModelValidationPanel.tsx`) into the active Live Navigation view (`NavigationView.tsx`).
+
+- **WHERE in website:**
+  Live Navigation & Vessel Conning Station (`activeView: 'navigation'`)
+
+- **INTEGRATION ARCHITECTURE:**
+  `Prior Model Predictions + Subsequent Observations` $\rightarrow$ `evaluateModelValidationBatch(...)` $\rightarrow$ `ModelValidationPanel.tsx` $\rightarrow$ `Navigator Retrospective Review`
+
+- **JUDGE DEMO FLOW:**
+  1. **Open Live Navigation:** Click **"Live Navigation"** on sidebar (`activeView: 'navigation'`).
+  2. **Locate Retrospective Model Validation Panel:** Scroll to **RETROSPECTIVE MODEL VALIDATION** panel in the navigation view.
+  3. **Select Model Type:** Click model selector tab to switch between **`ICEBERG TRAJECTORY`** and **`SEA ICE CONCENTRATION`**.
+  4. **Show Prediction vs Observation Comparison:** Point out prediction vs observation record logs (Prediction ID, Observation ID, Forecast Horizon, Temporal Mismatch, Spatial/Concentration Error).
+  5. **Show Error Metrics:** Inspect Mean Absolute Error (MAE), Root Mean Square Error (RMSE), and Bias (Mean Error) (e.g. `MAE 2.15 nm`, `RMSE 2.85 nm`, `Bias +0.45 nm`).
+  6. **Show Uncertainty Envelope Coverage Rate %:** Inspect uncertainty coverage rate (e.g. `100.0% inside envelope`) and individual `INSIDE` / `OUTSIDE` coverage badges.
+  7. **Show Validation Status:** Inspect overall validation status badge (`VALIDATED_MATCH`, `PARTIAL_MATCH`, `MISMATCH`, `UNMATCHED`, or `INSUFFICIENT_DATA`) and status distribution breakdown counter grid.
+  8. **Show Provenance / Data Mode:** Confirm clear provenance badges (`REAL`, `SIMULATED`, `HYBRID`, or `UNAVAILABLE`).
+  9. **Explain Retrospective Nature:** Clarify to reviewers that this feature evaluates prior model predictions against subsequently recorded observations.
+  10. **Show Zero Autonomous Route/Model Modification:** Demonstrate that validation metrics do NOT automatically alter active route geometry, waypoints, vessel speed, heading, uncertainty radius, confidence score, trigger route replanning, or retrain models.
+  11. **Explain Future Model Calibration Boundary:** Explain that future model calibration pipelines can consume these retrospective validation metrics, but Phase 15B does not execute autonomous model retraining.
+
+- **JUDGE-FACING STATEMENT:**
+  > *"CRYO NAV systematically evaluates past model predictions against subsequent observations to calculate spatial/value error metrics and uncertainty envelope coverage rates. It presents retrospective model validation transparently with complete data provenance while preserving strict decision-support boundaries."*
+
 
 
 
