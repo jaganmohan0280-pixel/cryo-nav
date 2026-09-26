@@ -721,6 +721,54 @@ This document provides the exact sequence of actions to demonstrate the full CRY
 - **JUDGE-FACING STATEMENT:**
   > *"CRYO NAV does not download everything. Instead, it evaluates discoverable satellite products against route sensitivity and bandwidth limits to identify which specific acquisitions can actually alter the active navigation decision."*
 
+---
+
+## PHASE 11C DECISION-IMPACT DATA ACQUISITION INTEGRATION DEMONSTRATION (PHASE 11C)
+
+### Step 34: Phase 11C Decision-Impact Data Acquisition Integration Navigation Demonstration
+
+- **WHERE in website:** Navigation View (`activeView: 'navigation'`)
+- **EXACT STEP-BY-STEP DEMO SEQUENCE:**
+
+1. **Start CRYO NAV & Navigate**:
+   - Launch application (`npm run dev`).
+   - Click **"Navigation"** on the left navigation sidebar.
+2. **Observe Current Route & Navigation State**:
+   - View vessel position, active route corridor, waypoints, ETA, and distance in top navigation header cards.
+3. **Observe Uncertainty Information**:
+   - Inspect the **Uncertainty Zone Panel** displaying spatial uncertainty envelope, confidence level, freshness, and forecast horizon.
+4. **Locate Decision-Impact Data Acquisition Section**:
+   - Scroll below Uncertainty Zone Panel to locate the section titled **"Decision-Impact Data Acquisition"** with supporting text: *"Prioritize available observations that could change the current navigation decision."*
+5. **Show Current Route & Decision Context**:
+   - Verify active route context, route sensitivity status, connectivity state, and available downlink bandwidth.
+6. **Show Ranked Available Satellite Products**:
+   - Observe ranked discoverable Sentinel-1 SAR products sorted by Value of Information (VoI).
+7. **Open Highest-Priority Product**:
+   - Click on the top candidate product card to expand details.
+8. **Inspect Decision-Support Rationale**:
+   - **Affected Decision:** Specific navigation decision corridor impacted.
+   - **Uncertainty Addressed:** Spatial hazard uncertainty region targeted.
+   - **Expected Decision Impact:** Quantified decision stability effect.
+   - **Expected Uncertainty Reduction:** Percentage reduction in spatial uncertainty bounds.
+   - **Acquisition Cost:** File size / downlink payload cost (MB).
+   - **Bandwidth Fit:** Whether product satisfies current bandwidth budget constraints.
+   - **Priority Assigned:** Priority level (`CRITICAL` / `HIGH` / `MEDIUM` / `LOW`).
+9. **Switch to LIMITED Connectivity**:
+   - Toggle connection state to **LIMITED** via application state controls.
+10. **Observe Bandwidth Constraints**:
+    - Panel dynamically updates bandwidth budget and flags products exceeding budget limits.
+11. **Switch to OFFLINE Connectivity**:
+    - Toggle connection state to **OFFLINE**.
+12. **Observe Product Status Update**:
+    - Products transition to `READY_WHEN_CONNECTED` status.
+13. **Confirm No Download Occurs**:
+    - System visualizes decision-impact metrics without initiating raster file downloads or satellite commands.
+14. **Confirm No Automatic Route Replanning**:
+    - Route waypoints, active alternative selection, and vessel guidance remain unaffected. Navigator retains full operational authority.
+
+- **JUDGE-FACING STATEMENT:**
+  > *"CRYO NAV does not simply download every available observation. It evaluates which available data could materially affect the current navigation decision and prioritizes acquisition accordingly."*
+
 
 
 

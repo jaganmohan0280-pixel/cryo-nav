@@ -21,6 +21,8 @@ import { runOfflineIntegrationTests } from './offlineIntegration.test';
 import { runUncertaintyEngineTests } from './uncertaintyEngine.test';
 import { runUncertaintyZonePanelTests } from './uncertaintyZonePanel.test';
 import { runUncertaintyIntegrationTests } from './uncertaintyIntegration.test';
+import { runDecisionImpactAcquisitionTests } from './decisionImpactAcquisition.test';
+import { runDecisionImpactAcquisitionPanelTests } from './decisionImpactAcquisitionPanel.test';
 
 // 1. Run Phase 4 Decision Confidence Tests (auto-runs on import)
 import './confidenceEngine.test';
@@ -51,6 +53,8 @@ p7bPromise.then(async (p7bResult) => {
   await runUncertaintyEngineTests();
   runUncertaintyZonePanelTests();
   await runUncertaintyIntegrationTests();
+  runDecisionImpactAcquisitionTests();
+  await runDecisionImpactAcquisitionPanelTests();
 
   if (
     p5Result.failed > 0 ||
