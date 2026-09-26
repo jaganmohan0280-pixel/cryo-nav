@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { AntarcticMap } from '../components/Map/AntarcticMap';
 import { TimelineSlider } from '../components/TimelineSlider';
@@ -37,6 +37,13 @@ import {
   AcquisitionRankingResult,
 } from '../services/decisionImpactAcquisitionEngine';
 import { DecisionImpactAcquisitionPanel } from '../components/navigation/DecisionImpactAcquisitionPanel';
+import {
+  evaluateDecisionReassessment,
+  DecisionStateSnapshot,
+  DecisionReassessmentResult,
+  ReassessmentDataMode,
+} from '../services/decisionReassessmentEngine';
+import { DecisionReassessmentPanel } from '../components/navigation/DecisionReassessmentPanel';
 
 export const NavigationView: React.FC = () => {
   const {
@@ -235,6 +242,107 @@ export const NavigationView: React.FC = () => {
     connectionState,
   ]);
 
+  // Derive Phase 12A / 12C Decision State Snapshot & Reassessment
+  const currentSnapshot = useMemo<DecisionStateSnapshot>(() => {
+    const targetBerg =
+      (selectedHazardId && icebergs?.find((b) => b.id === selectedHazardId)) ||
+      (icebergs && icebergs.length > 0 ? icebergs[0] : null);
+
+    const primaryEncounter =
+      hazardEvaluation?.encounters?.find(
+        (e) => e.icebergId === targetBerg?.id || e.hazardId === targetBerg?.id
+      ) || (hazardEvaluation?.encounters && hazardEvaluation.encounters.length > 0 ? hazardEvaluation.encounters[0] : null);
+
+    const targetUncertainty =
+      activeUncertaintyPanelData?.uncertaintyRadiusNm ??
+      targetBerg?.uncertaintyRadiusNm ??
+      0.8;
+
+    const freshnessState: FreshnessState =
+      connectionState === 'OFFLINE' && offlineSnapshot?.syncTimestamp
+        ? 'STALE'
+        : unifiedEnvironment?.alignmentStatus === 'DEGRADED' || unifiedEnvironment?.alignmentStatus === 'UNAVAILABLE'
+        ? 'STALE'
+        : unifiedEnvironment?.alignmentStatus === 'PARTIALLY ALIGNED'
+        ? 'AGING'
+        : 'FRESH';
+
+    const confidenceLevel = decisionConfidence?.overallLevel || 'HIGH';
+    const routeSensitivity = batchSensitivitySummary?.overallStability || 'ROBUST';
+    const dataMode: ReassessmentDataMode =
+      targetBerg && !targetBerg.isSynthetic ? 'REAL' : 'SIMULATED';
+
+    return {
+      timestamp: new Date().toISOString(),
+      selectedRouteId: activeRoute?.id || selectedRouteId || 'safest',
+      selectedRouteName: activeRoute?.name || 'Active Route Corridor',
+      confidenceLevel,
+      freshnessState,
+      connectionState,
+      routeSensitivity,
+      uncertaintyRadiusNm: targetUncertainty,
+      primaryHazardId: targetBerg?.id || primaryEncounter?.hazardId || primaryEncounter?.icebergId || 'primary-hazard',
+      primaryHazardSeverity: primaryEncounter?.severity || 'LOW',
+      primaryHazardCpaNm: primaryEncounter?.cpaNm ?? targetBerg?.closestApproach?.distanceNm ?? 15.0,
+      primaryHazardTcaHours: primaryEncounter?.tcaHours ?? targetBerg?.closestApproach?.timeHours ?? 12.0,
+      hazards: hazardEvaluation?.encounters || [],
+      uncertaintyZones: uncertaintyEvaluations || [],
+      hasNewObservation: false,
+      isObservationNearRoute: false,
+      dataMode,
+      provenance: targetBerg?.provenance?.source || (dataMode === 'REAL' ? 'USNIC / Copernicus Real Data' : 'Synthetic Antarctic Model'),
+    };
+  }, [
+    activeRoute,
+    selectedRouteId,
+    selectedHazardId,
+    icebergs,
+    hazardEvaluation,
+    activeUncertaintyPanelData,
+    connectionState,
+    offlineSnapshot,
+    unifiedEnvironment,
+    decisionConfidence,
+    batchSensitivitySummary,
+    uncertaintyEvaluations,
+  ]);
+
+  const prevSnapshotRef = useRef<DecisionStateSnapshot | null>(null);
+
+  const reassessmentResult = useMemo<DecisionReassessmentResult | null>(() => {
+    if (!currentSnapshot) return null;
+
+    if (!prevSnapshotRef.current) {
+      prevSnapshotRef.current = currentSnapshot;
+    }
+
+    const prev = prevSnapshotRef.current;
+    const curr = currentSnapshot;
+
+    const hasKeyChanged =
+      prev.confidenceLevel !== curr.confidenceLevel ||
+      prev.freshnessState !== curr.freshnessState ||
+      prev.connectionState !== curr.connectionState ||
+      prev.routeSensitivity !== curr.routeSensitivity ||
+      prev.uncertaintyRadiusNm !== curr.uncertaintyRadiusNm ||
+      prev.primaryHazardSeverity !== curr.primaryHazardSeverity ||
+      prev.primaryHazardCpaNm !== curr.primaryHazardCpaNm ||
+      prev.primaryHazardId !== curr.primaryHazardId ||
+      prev.hasNewObservation !== curr.hasNewObservation;
+
+    const evalResult = evaluateDecisionReassessment({
+      previousState: prev,
+      currentState: curr,
+      activeRoute,
+    });
+
+    if (hasKeyChanged) {
+      prevSnapshotRef.current = curr;
+    }
+
+    return evalResult;
+  }, [currentSnapshot, activeRoute]);
+
   // Persist environmental state to local storage when online / update snapshot
   useEffect(() => {
     let isMounted = true;
@@ -390,6 +498,9 @@ export const NavigationView: React.FC = () => {
         connectionState={connectionState}
         availableBandwidthMb={connectionState === 'LIMITED' ? 50 : 150}
       />
+
+      {/* Phase 12C — Decision Reassessment Integration Panel */}
+      <DecisionReassessmentPanel result={reassessmentResult} />
 
       {/* Main Split: Center Interactive Map + Right Conning Telemetry Panel */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-[500px] border border-slate-200 rounded-lg bg-white shadow-xs">
