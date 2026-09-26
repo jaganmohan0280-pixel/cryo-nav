@@ -27,6 +27,8 @@ import { runDecisionReassessmentTests } from './decisionReassessment.test';
 import { runDecisionReassessmentPanelTests } from './decisionReassessmentPanel.test';
 import './routeResilience.test';
 import { runRouteResiliencePanelTests } from './routeResiliencePanel.test';
+import './navigationAlert.test';
+import { runNavigationAlertPanelTests } from './navigationAlertPanel.test';
 
 // 1. Run Phase 4 Decision Confidence Tests (auto-runs on import)
 import './confidenceEngine.test';
@@ -61,6 +63,7 @@ p7bPromise.then(async (p7bResult) => {
   await runDecisionImpactAcquisitionPanelTests();
   const p12aResult = runDecisionReassessmentTests();
   runRouteResiliencePanelTests();
+  runNavigationAlertPanelTests();
 
   if (
     p5Result.failed > 0 ||
@@ -80,7 +83,7 @@ p7bPromise.then(async (p7bResult) => {
     process.exit(1);
   } else {
     console.log('========================================================================================');
-    console.log('ALL PHASE 4, 5, 6, 7A, 7B, 7C, 8A, 8B, 9A, 9B, 9C, 10, 11, 12 & 13 TESTS PASSED!');
+    console.log('ALL PHASE 4, 5, 6, 7A, 7B, 7C, 8A, 8B, 9A, 9B, 9C, 10, 11, 12, 13 & 14 TESTS PASSED!');
     console.log('========================================================================================\n');
   }
 });
