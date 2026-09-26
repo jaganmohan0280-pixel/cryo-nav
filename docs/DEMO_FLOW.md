@@ -964,6 +964,50 @@ This document provides the exact sequence of actions to demonstrate the full CRY
 - **JUDGE-FACING STATEMENT:**
   > *"The CRYO NAV AI Assistant presents evidence-backed, traceable navigation explanations directly from the Phase 16A context engine. It answers operational inquiries with structured evidence and explicit data provenance without calling external LLMs or issuing autonomous vessel control commands."*
 
+---
+
+## PHASE 16C AI NAVIGATION ASSISTANT — LLM EXPLANATION LAYER DEMONSTRATION (PHASE 16C)
+
+### Step 40: Phase 16C Controlled LLM Natural Language Explanation Layer
+
+- **WHAT WAS BUILT:**
+  Controlled LLM explanation service (`navigationAssistantLlm.ts`) integrated with `@google/genai` (`GoogleGenAI`), `NavigationAssistantPanel.tsx`, and `AiAssistantView.tsx`. Adds natural-language query input and explanation layer strictly grounded in Phase 16A `navigationAssistantContextEngine.ts`.
+
+- **WHERE in website:**
+  AI Assistant View (`activeView: 'ai'`)
+
+- **INTEGRATION ARCHITECTURE:**
+  `Natural Language Query` + `Phase 16A Context Payload` $\rightarrow$ `buildSystemInstruction(...)` $\rightarrow$ `GoogleGenAI (@google/genai)` $\rightarrow$ `NavigationAssistantPanel.tsx` $\rightarrow$ `Grounded Explanation + Preserved Evidence`
+
+- **JUDGE DEMO FLOW:**
+  1. **Open AI Assistant:** Navigate to AI Assistant view (`activeView: 'ai'`).
+  2. **Show Deterministic Context:** Point out the Phase 16A context chips and underlying evidence metric grid.
+  3. **Ask: "Why is this route recommended?"**:
+     - Type or click prompt: *"Why is this route recommended?"* and click **[ Ask AI Assistant ]**.
+  4. **Show Natural-Language Explanation:** Observe LLM explanation response container displaying grounded narrative.
+  5. **Show Evidence:** Point out supporting route risk, CPA, and confidence evidence cards beneath explanation.
+  6. **Ask: "What hazards affect my route?"**:
+     - Type prompt: *"What hazards affect my route?"* and click **[ Ask AI Assistant ]**.
+  7. **Show Grounded Explanation:** Observe LLM explanation referencing closest iceberg CPA and sea ice exposure.
+  8. **Ask: "What data could change this decision?"**:
+     - Type prompt: *"What data could change this decision?"* and click **[ Ask AI Assistant ]**.
+  9. **Show Decision-Impact Evidence:** Observe explanation detailing satellite product acquisition priorities and expected uncertainty reduction.
+  10. **Ask: "Is this route resilient?"**:
+      - Type prompt: *"Is this route resilient?"* and click **[ Ask AI Assistant ]**.
+  11. **Show Resilience Evidence:** Observe explanation highlighting resilience index score, sensitivity classification, and dominant scenario.
+  12. **Ask: "What heading should the vessel use?"**:
+      - Type prompt: *"What heading should the vessel use?"* (or *"turn left"* / *"change speed"*).
+  13. **Show Navigator-Authority Response:** Observe system intercept response: *"CRYO NAV provides decision support and risk assessment. Navigator authority is retained for all vessel control and steering commands."*
+  14. **Show Provenance:** Point out provenance badge (`REAL`, `SIMULATED`, `HYBRID`, or `UNAVAILABLE`) preserving data origin.
+  15. **Demonstrate Deterministic Fallback:**
+      - Clear `VITE_GEMINI_API_KEY` or trigger service failure/timeout.
+      - Observe orange alert banner: *"AI explanation service unavailable — deterministic CRYO NAV context remains available."*
+      - Verify deterministic quick questions remain fully functional.
+
+- **JUDGE-FACING STATEMENT:**
+  > *"CRYO NAV's Phase 16C LLM explanation layer provides controlled natural-language reasoning strictly grounded in authoritative Phase 16A context engine data. The LLM cannot independently compute navigation metrics, cannot issue vessel steering commands, and falls back seamlessly to deterministic CRYO NAV context when the LLM service is unavailable."*
+
+
 
 
 
