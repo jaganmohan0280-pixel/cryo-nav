@@ -23,7 +23,15 @@ import { evaluateAllRouteHazards } from '../services/hazardEncounterEngine';
 import { OfflineStatusPanel, OfflineStatusPanelProps } from '../components/navigation/OfflineStatusPanel';
 import { connectivityStateEngine } from '../services/connectivityStateEngine';
 import { offlineStorageEngine, OfflineNavigationSnapshot } from '../services/offlineStorageEngine';
-import { ConnectionState } from '../types';
+import { ConnectionState, FreshnessState } from '../types';
+import {
+  evaluateUncertainty,
+  evaluateBatchUncertainty,
+  UncertaintyEvaluationResult,
+  UncertaintyInput,
+} from '../services/uncertaintyEngine';
+import { UncertaintyZonePanel, UncertaintyData } from '../components/navigation/UncertaintyZonePanel';
+import { UncertaintyLegend } from '../components/navigation/UncertaintyLegend';
 
 export const NavigationView: React.FC = () => {
   const {
@@ -73,6 +81,122 @@ export const NavigationView: React.FC = () => {
       cruisingSpeedKnots: selectedVessel?.cruisingSpeedKnots || 12.0,
     });
   }, [activeRoute, icebergs, seaIceCells, selectedVessel]);
+
+  // Derive Phase 10A / Phase 10C Uncertainty Evaluations
+  const uncertaintyEvaluations = useMemo<UncertaintyEvaluationResult[]>(() => {
+    const freshnessState: FreshnessState =
+      connectionState === 'OFFLINE' && offlineSnapshot?.syncTimestamp
+        ? 'STALE'
+        : unifiedEnvironment?.alignmentStatus === 'DEGRADED' || unifiedEnvironment?.alignmentStatus === 'UNAVAILABLE'
+        ? 'STALE'
+        : unifiedEnvironment?.alignmentStatus === 'PARTIALLY ALIGNED'
+        ? 'AGING'
+        : 'FRESH';
+
+    const confidenceLevel = decisionConfidence?.overallLevel || 'HIGH';
+    const inputs: UncertaintyInput[] = [];
+
+    // Target iceberg hazard
+    const targetBerg =
+      (selectedHazardId && icebergs?.find((b) => b.id === selectedHazardId)) ||
+      (icebergs && icebergs.length > 0 ? icebergs[0] : null);
+
+    if (targetBerg) {
+      inputs.push({
+        hazardId: targetBerg.id,
+        hazardName: targetBerg.name,
+        hazardType: 'ICEBERG',
+        location: { lat: targetBerg.lat, lon: targetBerg.lon },
+        confidenceLevel,
+        freshnessState,
+        connectionState,
+        forecastHorizonHours: forecastHorizonHours || 0,
+        baseRadiusNm: targetBerg.uncertaintyRadiusNm || 0.8,
+        dataMode: targetBerg.isSynthetic ? 'SIMULATED' : 'REAL',
+        provenance: targetBerg.isSynthetic ? 'Synthetic Baseline Model' : 'USNIC Iceberg Observation',
+      });
+    }
+
+    // Sea Ice hazard
+    if (seaIceCells && seaIceCells.length > 0) {
+      const highIceCell = seaIceCells.find((c) => c.concentrationPercent > 60) || seaIceCells[0];
+      inputs.push({
+        hazardId: `seaice-${highIceCell.id}`,
+        hazardName: `Pack Ice (${highIceCell.concentrationPercent}% conc)`,
+        hazardType: 'SEA_ICE',
+        location: { lat: highIceCell.lat, lon: highIceCell.lon },
+        confidenceLevel,
+        freshnessState,
+        connectionState,
+        forecastHorizonHours: forecastHorizonHours || 0,
+        baseRadiusNm: 3.0,
+        dataMode: highIceCell.isRealData ? 'REAL' : 'SIMULATED',
+        provenance: highIceCell.isRealData ? 'Copernicus Sea-Ice NRT' : 'Synthetic Sea-Ice Model',
+      });
+    }
+
+    // Weather hazard
+    if (weather) {
+      inputs.push({
+        hazardId: 'weather-01',
+        hazardName: `Polar Weather Front (${weather.windSpeedKnots} kts wind)`,
+        hazardType: 'WEATHER',
+        location: { lat: gpsTracking.currentLat, lon: gpsTracking.currentLon },
+        confidenceLevel,
+        freshnessState,
+        connectionState,
+        forecastHorizonHours: forecastHorizonHours || 0,
+        baseRadiusNm: 10.0,
+        dataMode: weather.isRealData ? 'REAL' : 'SIMULATED',
+        provenance: weather.isRealData ? 'ECMWF IFS Weather Forecast' : 'Synthetic Weather Model',
+      });
+    }
+
+    if (inputs.length === 0) return [];
+    return evaluateBatchUncertainty(inputs);
+  }, [
+    connectionState,
+    decisionConfidence,
+    forecastHorizonHours,
+    gpsTracking,
+    icebergs,
+    offlineSnapshot,
+    seaIceCells,
+    selectedHazardId,
+    unifiedEnvironment,
+    weather,
+  ]);
+
+  const activeUncertaintyPanelData = useMemo<UncertaintyData | null>(() => {
+    if (uncertaintyEvaluations.length === 0) return null;
+    const match =
+      (selectedHazardId && uncertaintyEvaluations.find((e) => e.hazardId === selectedHazardId)) ||
+      uncertaintyEvaluations[0];
+
+    return {
+      id: match.hazardId,
+      hazardType: match.hazardType === 'SEA_ICE' ? 'SEA ICE' : match.hazardType,
+      confidence: match.confidenceLevel,
+      freshness: match.freshnessState,
+      connectivity: match.connectionState,
+      forecastHorizon: match.forecastHorizonLabel,
+      uncertaintyRadiusNm: match.expandedUncertaintyRadiusNm,
+      uncertaintyEnvelopeLabel: `±${match.expandedUncertaintyRadiusNm.toFixed(1)} nm (${match.expansionFactor}x expansion)`,
+      reason: match.explanation,
+      cautionLevel:
+        match.recommendedCautionLevel === 'RE_EVALUATION_REQUIRED'
+          ? 'EXTREME'
+          : match.recommendedCautionLevel === 'EXCLUSIVE_MONITORING'
+          ? 'HIGH'
+          : match.recommendedCautionLevel === 'HIGH_CAUTION'
+          ? 'HIGH'
+          : match.recommendedCautionLevel === 'ELEVATED'
+          ? 'ELEVATED'
+          : 'STANDARD',
+      provenance: match.dataMode,
+      lastUpdateTimestamp: match.timestamp,
+    };
+  }, [uncertaintyEvaluations, selectedHazardId]);
 
   // Persist environmental state to local storage when online / update snapshot
   useEffect(() => {
@@ -217,11 +341,14 @@ export const NavigationView: React.FC = () => {
         onSelectHazard={(id) => setSelectedHazardId(id)}
       />
 
+      {/* Phase 10B/10C — Uncertainty Zone Visualization & Explanation Panel */}
+      <UncertaintyZonePanel uncertaintyData={activeUncertaintyPanelData} showLegendInline={true} />
+
       {/* Main Split: Center Interactive Map + Right Conning Telemetry Panel */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-[500px] border border-slate-200 rounded-lg bg-white shadow-xs">
         {/* Real Interactive Antarctic Map */}
         <div className="flex-1 flex flex-col h-[50vh] lg:h-full min-h-[360px] relative overflow-hidden">
-          <AntarcticMap />
+          <AntarcticMap uncertaintyEvaluations={uncertaintyEvaluations} />
           <TimelineSlider />
         </div>
 

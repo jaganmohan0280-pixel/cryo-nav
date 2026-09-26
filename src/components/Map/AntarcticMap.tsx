@@ -37,6 +37,8 @@ import {
 } from 'lucide-react';
 
 
+import { UncertaintyEvaluationResult } from '../../services/uncertaintyEngine';
+
 interface TileConfig {
   name: string;
   url: string;
@@ -76,13 +78,19 @@ const TILE_SERVERS: Record<string, TileConfig> = {
   },
 };
 
-interface AntarcticMapProps {
+export interface AntarcticMapProps {
   mode?: 'default' | 'trajectory' | 'seaice';
   selectedCellId?: string;
   onCellSelect?: (cellId: string) => void;
+  uncertaintyEvaluations?: UncertaintyEvaluationResult[] | null;
 }
 
-export const AntarcticMap: React.FC<AntarcticMapProps> = ({ mode = 'default', selectedCellId, onCellSelect }) => {
+export const AntarcticMap: React.FC<AntarcticMapProps> = ({
+  mode = 'default',
+  selectedCellId,
+  onCellSelect,
+  uncertaintyEvaluations,
+}) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const baseTileLayerRef = useRef<L.TileLayer | null>(null);
@@ -1003,9 +1011,70 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({ mode = 'default', se
 
     if (isSeaIceMode || (!mapLayers.uncertainty && !isTrajectoryMode)) return;
 
+    // Render Phase 10C Uncertainty Evaluations if provided
+    if (uncertaintyEvaluations && uncertaintyEvaluations.length > 0) {
+      uncertaintyEvaluations.forEach((evalResult) => {
+        const radiusMeters = evalResult.expandedUncertaintyRadiusNm * 1852;
+        const isCritical = evalResult.severity === 'CRITICAL' || evalResult.recommendedCautionLevel === 'RE_EVALUATION_REQUIRED';
+        const isHigh = evalResult.severity === 'HIGH' || evalResult.recommendedCautionLevel === 'EXCLUSIVE_MONITORING' || evalResult.recommendedCautionLevel === 'HIGH_CAUTION';
+
+        const strokeColor = isCritical ? '#ef4444' : isHigh ? '#f59e0b' : '#06b6d4';
+        const fillColor = isCritical ? '#ef4444' : isHigh ? '#f59e0b' : '#06b6d4';
+
+        const circle = L.circle([evalResult.location.lat, evalResult.location.lon], {
+          radius: radiusMeters,
+          color: strokeColor,
+          weight: 2,
+          dashArray: '4, 4',
+          fillColor: fillColor,
+          fillOpacity: 0.15,
+        });
+
+        const popupContent = `
+          <div style="font-family: monospace; font-size: 11px; padding: 4px; max-width: 250px; color: #f8fafc;">
+            <div style="font-weight: bold; color: #38bdf8; text-transform: uppercase;">
+              Model Uncertainty Zone (${evalResult.forecastHorizonLabel})
+            </div>
+            <div style="margin-top: 4px;">
+              <strong>Hazard:</strong> ${evalResult.hazardName} (${evalResult.hazardType})
+            </div>
+            <div style="color: #fbbf24; font-weight: bold;">
+              <strong>Error Radius:</strong> ±${evalResult.expandedUncertaintyRadiusNm.toFixed(1)} nm (${evalResult.expansionFactor}x expansion)
+            </div>
+            <div style="color: #94a3b8; margin-top: 2px;">
+              <strong>Confidence:</strong> ${evalResult.confidenceLevel} | <strong>Freshness:</strong> ${evalResult.freshnessState}
+            </div>
+            <div style="color: #94a3b8;">
+              <strong>Connectivity:</strong> ${evalResult.connectionState} | <strong>Mode:</strong> ${evalResult.dataMode}
+            </div>
+            <div style="margin-top: 6px; font-family: sans-serif; font-size: 10px; color: #cbd5e1; background: rgba(15,23,42,0.8); padding: 4px; border-radius: 4px;">
+              ${evalResult.explanation}
+            </div>
+            <div style="margin-top: 4px; font-size: 9px; color: #94a3b8; font-style: italic; border-top: 1px solid #334155; padding-top: 2px;">
+              Model spatial uncertainty envelope — NOT a confirmed hazard boundary or collision guarantee.
+            </div>
+          </div>
+        `;
+
+        circle.bindPopup(popupContent);
+        circle.bindTooltip(
+          `
+          <div class="text-[11px] font-mono">
+            <div class="font-bold text-cyan-300">Model Uncertainty Zone (${evalResult.forecastHorizonLabel})</div>
+            <div>${evalResult.hazardName} (±${evalResult.expandedUncertaintyRadiusNm.toFixed(1)} nm)</div>
+            <div class="text-[9px] text-slate-400 italic">Spatial uncertainty envelope</div>
+          </div>
+        `,
+          { sticky: true }
+        );
+
+        circle.addTo(uncLayer);
+      });
+    }
+
     const selectedBerg = icebergs.find((b) => b.id === selectedIcebergId) || icebergs[0];
 
-    if (isTrajectoryMode && selectedBerg) {
+    if (isTrajectoryMode && selectedBerg && (!uncertaintyEvaluations || uncertaintyEvaluations.length === 0)) {
       const pointsWithUncertainty = [
         { lat: selectedBerg.lat, lon: selectedBerg.lon, radiusNm: selectedBerg.uncertaintyRadiusNm, label: 'T+0h', hours: 0 },
         ...(selectedBerg.predictedTrajectory?.map((pt) => ({
@@ -1061,7 +1130,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({ mode = 'default', se
       });
       routeUncertaintyPolygon.addTo(uncLayer);
     }
-  }, [routes, selectedRouteId, icebergs, mapLayers.uncertainty, selectedIcebergId, isTrajectoryMode, isSeaIceMode, forecastHorizonHours]);
+  }, [routes, selectedRouteId, icebergs, mapLayers.uncertainty, selectedIcebergId, isTrajectoryMode, isSeaIceMode, forecastHorizonHours, uncertaintyEvaluations]);
 
   // Update Routes Layer
   useEffect(() => {
