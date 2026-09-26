@@ -902,6 +902,69 @@ This document provides the exact sequence of actions to demonstrate the full CRY
 - **JUDGE-FACING STATEMENT:**
   > *"CRYO NAV systematically evaluates past model predictions against subsequent observations to calculate spatial/value error metrics and uncertainty envelope coverage rates. It presents retrospective model validation transparently with complete data provenance while preserving strict decision-support boundaries."*
 
+---
+
+## PHASE 16 AI NAVIGATION ASSISTANT UI DEMONSTRATION (PHASE 16B)
+
+### Step 39: Phase 16B AI Navigation Assistant UI & Controlled Context Integration
+
+- **WHAT WAS BUILT:**
+  Controlled integration of Phase 16A AI Navigation Assistant Context Engine (`navigationAssistantContextEngine.ts`) and Phase 16B AI Navigation Assistant Panel (`NavigationAssistantPanel.tsx`) into the AI Assistant View (`AiAssistantView.tsx`).
+
+- **WHERE in website:**
+  AI Assistant View (`activeView: 'ai'`)
+
+- **INTEGRATION ARCHITECTURE:**
+  `Live App Context + Evaluated Engine States` $\rightarrow$ `buildNavigationAssistantContext(...)` $\rightarrow$ `NavigationAssistantPanel.tsx` $\rightarrow$ `Navigator Decision Support`
+
+- **JUDGE DEMO FLOW:**
+  1. **Open CRYO NAV:** Launch application on `http://localhost:3000`.
+  2. **Open AI Assistant:** Click **"AI Assistant"** on sidebar (`activeView: 'ai'`).
+  3. **Show Assistant Header & Disclaimer:**
+     - Point out header: **CRYO NAV AI ASSISTANT — Decision Support — Navigator Authority Retained**.
+     - Point out mandatory operational mandate: *"CRYO NAV provides decision support. The navigator remains responsible for route selection and vessel control."*
+  4. **Show Current Context Summary:**
+     - Point out context chips: Mission, Vessel Profile, Active Route Corridor, Decision Confidence level.
+  5. **Ask: "Why is this route recommended?"**:
+     - Click **"Why is this route recommended?"** quick-question button.
+     - Inspect structured answer generated deterministically from Phase 16A engine output.
+  6. **Show Supporting Route Metrics:**
+     - Point out route risk score, distance, ETA, and recommendation rationale in evidence grid.
+  7. **Ask: "What hazards affect my route?"**:
+     - Click **"What hazards affect my route?"** button.
+     - Show hazard count, critical/high breakdown, CPA, and sea-ice concentration metrics.
+  8. **Ask: "How confident is the current decision?"**:
+     - Click **"How confident is the current decision?"** button.
+     - Show overall confidence level, confidence score, primary limiting factor, and warnings.
+  9. **Ask: "What uncertainty affects this decision?"**:
+     - Click **"What uncertainty affects this decision?"** button.
+     - Show uncertainty radius, forecast horizon, expansion factor, and caution level.
+  10. **Ask: "What data could change the decision?"**:
+      - Click **"What data could change the decision?"** button.
+      - Show decision-impact satellite acquisition priorities, sensor, engineering priority score, and expected uncertainty reduction.
+  11. **Ask: "Is this route resilient?"**:
+      - Click **"Is this route resilient?"** button.
+      - Show route resilience score, sensitivity classification, max risk delta, and dominant sensitivity scenario.
+  12. **Ask: "Does the system recommend reassessment?"**:
+      - Click **"Does the system recommend reassessment?"** button.
+      - Show decision reassessment status and primary trigger.
+  13. **Ask: "What limitations should I know?"**:
+      - Click **"What limitations should I know?"** button.
+      - Point out physical model approximation disclosures and heuristic notices.
+  14. **Point Out Data Mode Badges:**
+      - Point out provenance badge (`REAL`, `SIMULATED`, `HYBRID`, or `UNAVAILABLE`).
+      - Demonstrate that simulated data is NEVER relabeled as REAL.
+  15. **Demonstrate Context Unavailable Handling:**
+      - When input context is missing/empty, show warning: **"ASSISTANT CONTEXT UNAVAILABLE — Environmental evidence required to answer this question is currently unavailable."** Confirm zero fabricated answers.
+  16. **Explain Deterministic Architecture:**
+      - Explain to judges that Phase 16B uses 100% deterministic structured context engine outputs without calling external LLM APIs (Gemini/OpenAI) or network endpoints.
+  17. **Explain Zero Autonomous Control:**
+      - Explain that the assistant strictly provides evidence explanations and NEVER emits autonomous control commands ("turn left", "change speed", "execute route").
+
+- **JUDGE-FACING STATEMENT:**
+  > *"The CRYO NAV AI Assistant presents evidence-backed, traceable navigation explanations directly from the Phase 16A context engine. It answers operational inquiries with structured evidence and explicit data provenance without calling external LLMs or issuing autonomous vessel control commands."*
+
+
 
 
 
