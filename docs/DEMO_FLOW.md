@@ -768,37 +768,36 @@ This document provides the exact sequence of actions to demonstrate the full CRY
 
 - **JUDGE-FACING STATEMENT:**
   > *"CRYO NAV does not simply download every available observation. It evaluates which available data could materially affect the current navigation decision and prioritizes acquisition accordingly."*
-## PHASE 12 CONTINUOUS DECISION REASSESSMENT DEMONSTRATION (PHASE 12B UI)
+## PHASE 12 DECISION REASSESSMENT INTEGRATION DEMONSTRATION (PHASE 12C)
 
-### Step 34: Phase 12 Decision Reassessment UI Demonstration Flow
+### Step 35: Phase 12C Decision Reassessment Controlled Navigation Integration
 
-- **WHAT IS BEING BUILT:**
-  Decision Reassessment UI (`DecisionReassessmentPanel`). Presentational component displaying continuous decision stability and reassessment indicators.
+- **WHAT WAS BUILT:**
+  Controlled integration of Phase 12A Decision Reassessment Engine (`decisionReassessmentEngine.ts`) and Phase 12B Decision Reassessment Panel (`DecisionReassessmentPanel.tsx`) into the active Live Navigation view (`NavigationView.tsx`).
 
-- **WHERE:**
-  Navigation decision-support workspace (standalone UI component in Phase 12B; integration is intentionally deferred to Phase 12C).
+- **WHERE in website:**
+  Live Navigation & Vessel Conning Station (`activeView: 'navigation'`)
 
-- **CURRENT PHASE:**
-  Phase 12B (Standalone UI & Component Verification). Integration into `NavigationView.tsx` is intentionally deferred to Phase 12C.
+- **INTEGRATION ARCHITECTURE:**
+  `Live Environmental / Navigation State` $\rightarrow$ `Previous Decision Snapshot` $\rightarrow$ `Current Decision Snapshot` $\rightarrow$ `decisionReassessmentEngine.ts` $\rightarrow$ `DecisionReassessmentPanel.tsx` $\rightarrow$ `Navigator Review`
 
-- **JUDGE DEMO FLOW (AFTER FUTURE INTEGRATION):**
-  1. **Open Live Navigation Workspace:** Open `NavigationView`.
-  2. **Observe Current Navigation Decision:** View baseline recommended route and decision status (`STABLE`).
-  3. **Simulate Environmental / Model State Shift:** Parameter update occurs (e.g. iceberg CPA drops, uncertainty expands, or confidence degrades).
-  4. **Decision Reassessment Evaluation:** `evaluateDecisionReassessment` compares previous and current snapshots.
-  5. **Panel State Display:** `DecisionReassessmentPanel` updates status display dynamically:
-     - `STABLE` (Emerald): Decision remains robust.
-     - `MONITOR` (Cyan): Moderate parameter drift; ongoing monitoring recommended.
-     - `REASSESS` (Amber): Material decision-relevant change detected; reassessment warranted.
-     - `RECOMMEND_REVIEW` (Rose): High sensitivity or critical risk change; formal navigator review recommended.
-  6. **Inspect Exact Trigger Reasons:** Panel lists evaluated trigger drivers (e.g. *"Closest Point of Approach (CPA) decreased from 15.0 nm to 2.5 nm"*).
-  7. **Inspect Uncertainty & CPA Metrics:** Review previous vs current radius, delta, expansion %, severity shift, and affected hazard ID.
-  8. **Inspect Data Provenance & Mode:** Panel explicitly highlights `REAL`, `SIMULATED`, or `HYBRID` provenance badges.
-  9. **Navigator Review:** Navigator evaluates displayed reassessment rationale and decision support recommendations.
-  10. **No Automatic Replanning:** Component provides decision support ONLY; route geometry and waypoints are NOT automatically changed.
+- **JUDGE DEMO FLOW:**
+  1. **Open Live Navigation:** Click **"Live Navigation"** on sidebar (`activeView: 'navigation'`).
+  2. **Observe Initial Reassessment Panel:** Scroll to **DECISION REASSESSMENT** panel positioned near Voyage State, Hazard Encounter, Uncertainty, and Decision-Impact Acquisition panels.
+  3. **Verify Initial Stability:** Confirm initial load displays status **`STABLE`** with green status badge. Verify that no false reassessment occurs on initial startup.
+  4. **Inspect Baseline Metrics:** Panel displays previous vs current values for Confidence, Freshness, Connectivity, CPA/TCA, Uncertainty Radius, Primary Hazard, and Route Sensitivity.
+  5. **Observe Change Detection:** As navigation telemetry, hazard proximity, or data freshness changes:
+     - If parameters remain within stable bounds: Panel displays `STABLE`.
+     - If hazard severity increases or CPA drops below safety threshold: Panel status transitions to `REASSESS` or `RECOMMEND_REVIEW`.
+  6. **Inspect Trigger Reasons:** Panel displays exact trigger driver list detailing parameter deltas (e.g. *"Closest Point of Approach (CPA) decreased..."* or *"Data freshness degraded to AGING..."*).
+  7. **Inspect Offline Behavior:**
+     - Toggle connectivity to **OFFLINE**. Notice that `OFFLINE` alone does NOT trigger false reassessment.
+     - If `OFFLINE` is combined with stale data and sensitive hazard: Engine produces `RECOMMEND_REVIEW` with clear trigger explanation.
+  8. **Verify Data Provenance:** Panel clearly displays active provenance badge (`REAL`, `SIMULATED`, or `HYBRID`).
+  9. **Verify Decision Support Guardrails:** Confirm that route geometry, waypoints, and vessel speed are NOT modified automatically. Navigator retains 100% operational authority.
 
-- **DATA STATUS:**
-  `REAL` when fed by the existing Copernicus Marine / ECMWF / USNIC real-data pipeline. `SIMULATED` when fed by explicit synthetic demonstration state. This phase itself creates no environmental data.
+- **DATA PROVENANCE & SCIENTIFIC INTEGRITY:**
+  `REAL` when real environmental feeds are active; `SIMULATED` in synthetic demo mode. The integration uses real existing application state without artificial data fabrication.
 
 
 

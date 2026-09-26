@@ -1,7 +1,8 @@
 # CRYO NAV — Master Validation & Verification Report
 
-**Phase:** Phase 10B — Uncertainty Zone Visualization & Explanation UI  
-**Phase:** Phase 10A — Uncertainty Engine & Uncertainty-Aware Navigation Logic  
+**Phase:** Phase 12C — Decision Reassessment Integration  
+**Phase:** Phase 12B — Decision Reassessment UI  
+**Phase:** Phase 12A — Decision Reassessment Core Engine  
 **Execution Date:** September 27, 2026  
 **Environment:** Windows Node.js v22+ / npm / TypeScript 5.8 / Vite 6 / Express  
 
@@ -9,7 +10,7 @@
 
 ## Validation Summary
 
-All system features and user workflow stages have been systematically tested and verified. The complete end-to-end operational sequence (`Mission → Environment → Prediction → Risk → Routes → Recommendation → GPS → Alerts → Decision Impact → Scenario Simulation → AI Assistant → Voyage State → Hazard Intelligence → Offline Storage → Offline UI Panel → Offline Integration → Uncertainty Engine`) is **WORKING** reliably as a unified decision-support workspace.
+All system features and user workflow stages have been systematically tested and verified. The complete end-to-end operational sequence (`Mission → Environment → Prediction → Risk → Routes → Recommendation → GPS → Alerts → Decision Impact → Scenario Simulation → AI Assistant → Voyage State → Hazard Intelligence → Offline Storage → Offline UI Panel → Offline Integration → Uncertainty Engine → Decision Acquisition → Decision Reassessment`) is **WORKING** reliably as a unified decision-support workspace.
 
 ---
 
@@ -17,6 +18,7 @@ All system features and user workflow stages have been systematically tested and
 
 | FEATURE | STATUS | TEST RESULT | KNOWN LIMITATION |
 | :--- | :--- | :--- | :--- |
+| **LL. Decision Reassessment Integration (Phase 12C)** | **WORKING** | **PASSED:** `NavigationView.tsx` connects Phase 12A decision reassessment core engine (`decisionReassessmentEngine.ts`) and Phase 12B presentational UI (`DecisionReassessmentPanel.tsx`) into the live Navigation decision-support workflow. Evaluates previous vs current decision state snapshots, tracks controlled snapshot history, displays reassessment status (`STABLE`, `MONITOR`, `REASSESS`, `RECOMMEND_REVIEW`), trigger reasons, uncertainty changes, CPA/hazard deltas, parameter comparisons, and explicit data provenance (`REAL`, `SIMULATED`, `HYBRID`, `UNAVAILABLE`) with mandatory navigator-review disclaimers. Does NOT modify routes, alter waypoints, change vessel speed, or execute satellite downlinks. Verified by 20 core engine unit tests (`decisionReassessment.test.ts`) and 20 UI panel unit tests (`decisionReassessmentPanel.test.ts`). | Decision-support indicator layer only; does not perform automatic route replanning or alter route geometry. |
 | **KK. Decision-Impact Data Acquisition Integration (Phase 11C)** | **WORKING** | **PASSED:** `NavigationView.tsx` successfully integrates Phase 11A VoI acquisition engine (`decisionImpactAcquisitionEngine.ts`) and Phase 11B presentational UI (`DecisionImpactAcquisitionPanel.tsx`, `AcquisitionPriorityList.tsx`) into the live Navigation decision-support workflow. Evaluates live route context, sensitivity, uncertainty, confidence, freshness, connectivity (`ONLINE`, `LIMITED`, `OFFLINE`, `SYNCING`), and available bandwidth. Displays ranked discoverable satellite products, acquisition rationale ("WHY THIS DATA?"), affected decision, uncertainty addressed, expected decision impact, expected uncertainty reduction, acquisition cost, and bandwidth fit. Preserves data provenance (`REAL`, `SIMULATED`, `HYBRID`, `UNAVAILABLE`) without triggering automatic downloads, satellite commanding, or route replanning. Verified by 28 engine unit tests (`decisionImpactAcquisition.test.ts`) and 24 UI panel unit tests (`decisionImpactAcquisitionPanel.test.ts`). | Decision-support visualization layer only; does not initiate raster downloads or command Sentinel satellites. |
 | :--- | :--- | :--- | :--- |
 | **JJ. Uncertainty Engine (Phase 10A)** | **WORKING** | **PASSED:** `uncertaintyEngine.ts` and `uncertaintyEngine.test.ts` compute deterministic spatial uncertainty envelopes, expansion factors, hazard severity levels, risk modifiers, caution levels, and human-readable explanations. Handles `ConfidenceLevel`, `FreshnessState`, `ConnectionState`, `forecastHorizonHours`, and `HazardType` without random noise or routing mutation. Verified by 28 automated unit tests (`npx tsx src/test/uncertaintyEngine.test.ts`). | Engineering baseline model parameters for decision support; not empirically calibrated statistical probability distributions. |

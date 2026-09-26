@@ -23,6 +23,8 @@ import { runUncertaintyZonePanelTests } from './uncertaintyZonePanel.test';
 import { runUncertaintyIntegrationTests } from './uncertaintyIntegration.test';
 import { runDecisionImpactAcquisitionTests } from './decisionImpactAcquisition.test';
 import { runDecisionImpactAcquisitionPanelTests } from './decisionImpactAcquisitionPanel.test';
+import { runDecisionReassessmentTests } from './decisionReassessment.test';
+import { runDecisionReassessmentPanelTests } from './decisionReassessmentPanel.test';
 
 // 1. Run Phase 4 Decision Confidence Tests (auto-runs on import)
 import './confidenceEngine.test';
@@ -55,6 +57,8 @@ p7bPromise.then(async (p7bResult) => {
   await runUncertaintyIntegrationTests();
   runDecisionImpactAcquisitionTests();
   await runDecisionImpactAcquisitionPanelTests();
+  const p12aResult = runDecisionReassessmentTests();
+  await runDecisionReassessmentPanelTests();
 
   if (
     p5Result.failed > 0 ||
@@ -68,12 +72,13 @@ p7bPromise.then(async (p7bResult) => {
     p7c4UxResult.failed > 0 ||
     p8bResult.failed > 0 ||
     p9aResult.failed > 0 ||
-    !p9cResult.success
+    !p9cResult.success ||
+    p12aResult.failed > 0
   ) {
     process.exit(1);
   } else {
     console.log('========================================================================================');
-    console.log('ALL PHASE 4, 5, 6, 7A, 7B, 7C, 8A, 8B, 9A, 9B, 9C & 10 UNCERTAINTY TESTS PASSED!');
+    console.log('ALL PHASE 4, 5, 6, 7A, 7B, 7C, 8A, 8B, 9A, 9B, 9C, 10, 11 & 12 TESTS PASSED!');
     console.log('========================================================================================\n');
   }
 });
