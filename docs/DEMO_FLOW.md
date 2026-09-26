@@ -652,6 +652,40 @@ This document provides the exact sequence of actions to demonstrate the full CRY
 - **JUDGE-FACING STATEMENT:**
   > *"CRYO NAV does not simply stop when connectivity disappears. Instead, the navigation interface remains available, last verified data remains locally accessible in IndexedDB storage, data age and provenance are visible, cached and live information are clearly distinguished, and the system never fabricates missing data."*
 
+---
+
+## PHASE 10 UNCERTAINTY-AWARE NAVIGATION & MAP INTEGRATION (PHASE 10C INTEGRATION)
+
+### Step 32: Phase 10 Uncertainty-Aware Navigation Demonstration Flow
+
+- **WHERE in website:** Main Live Navigation View (`activeView: 'navigation'`)
+- **EXACT STEP-BY-STEP DEMO SEQUENCE:**
+
+1. **Open Live Navigation Workspace**: Launch application at `http://localhost:3000` and navigate to **"Live Navigation"**.
+2. **Inspect Uncertainty Zone & Explanation Panel**:
+   - Locate top **Uncertainty Zone & Explanation Panel**.
+   - Observe baseline parameters: Hazard Type (`ICEBERG`), Confidence (`HIGH`), Freshness (`FRESH`), Horizon (`+0h`), Radius (`±0.8 nm`), Caution Level (`STANDARD`), and Data Mode (`REAL`).
+3. **Observe Antarctic Map Overlay**:
+   - Inspect Leaflet GIS map. Translucent cyan dashed envelope (`±0.8 nm`) is drawn around the target hazard.
+   - Hover cursor or click envelope: Tooltip/Popup confirms *"Model Uncertainty Zone (+0h)"* with explicit scientific disclaimer: *"Model spatial uncertainty envelope — NOT a confirmed hazard boundary or collision guarantee."*
+4. **Demonstrate Horizon Uncertainty Expansion**:
+   - Move bottom **Timeline Slider** from `+0h` $\rightarrow$ `+24h` $\rightarrow$ `+48h` $\rightarrow$ `+72h`.
+   - Observe dynamic spatial envelope expansion on map (from `±0.8 nm` to `±1.92 nm`).
+   - Uncertainty Zone Panel updates reason: `"+72h forecast horizon (+140% horizon growth factor)"` and Caution Level shifts to `ELEVATED` / `HIGH`.
+5. **Demonstrate Offline Connectivity Uncertainty Expansion**:
+   - Disable network adapter or toggle DevTools Offline mode.
+   - Panel updates connection state to **`OFFLINE`** (`Operating from cached data`).
+   - Uncertainty expansion factor increases by 1.35x. Expanded radius grows on map. Explanation explicitly details offline cache latency.
+6. **Verify No Automatic Route Alteration**:
+   - Observe that selected route corridor, waypoints, and vessel path remain intact.
+   - Increased uncertainty communicates decision-support caution without triggering automatic route deletion or unauthorized replanning.
+7. **Restore Connectivity**:
+   - Re-enable network connectivity. Status reverts to `ONLINE` and uncertainty envelope tightens accordingly.
+
+- **JUDGE-FACING STATEMENT:**
+  > *"CRYO NAV does not treat a prediction as a precise point. Instead, when confidence decreases, data becomes stale, connectivity is lost, or forecast horizon increases, the modeled spatial uncertainty zone expands deterministically, making forecast risk operationally visible to the navigator without mutating underlying routes."*
+
+
 
 
 

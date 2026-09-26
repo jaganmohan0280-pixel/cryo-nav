@@ -18,6 +18,9 @@ import { runHazardEncounterTests } from './hazardEncounter.test';
 import { runOfflineStorageTests } from './offlineStorage.test';
 import { runOfflineStatusPanelTests } from './offlineStatusPanel.test';
 import { runOfflineIntegrationTests } from './offlineIntegration.test';
+import { runUncertaintyEngineTests } from './uncertaintyEngine.test';
+import { runUncertaintyZonePanelTests } from './uncertaintyZonePanel.test';
+import { runUncertaintyIntegrationTests } from './uncertaintyIntegration.test';
 
 // 1. Run Phase 4 Decision Confidence Tests (auto-runs on import)
 import './confidenceEngine.test';
@@ -45,6 +48,9 @@ p7bPromise.then(async (p7bResult) => {
   const p9aResult = await runOfflineStorageTests();
   runOfflineStatusPanelTests();
   const p9cResult = await runOfflineIntegrationTests();
+  await runUncertaintyEngineTests();
+  runUncertaintyZonePanelTests();
+  await runUncertaintyIntegrationTests();
 
   if (
     p5Result.failed > 0 ||
@@ -63,7 +69,7 @@ p7bPromise.then(async (p7bResult) => {
     process.exit(1);
   } else {
     console.log('========================================================================================');
-    console.log('ALL PHASE 4, 5, 6, 7A, 7B, 7C, 8A, 8B, 9A, 9B & 9C OFFLINE INTEGRATION TESTS PASSED!');
+    console.log('ALL PHASE 4, 5, 6, 7A, 7B, 7C, 8A, 8B, 9A, 9B, 9C & 10 UNCERTAINTY TESTS PASSED!');
     console.log('========================================================================================\n');
   }
 });
