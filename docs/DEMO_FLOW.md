@@ -799,6 +799,45 @@ This document provides the exact sequence of actions to demonstrate the full CRY
 - **DATA PROVENANCE & SCIENTIFIC INTEGRITY:**
   `REAL` when real environmental feeds are active; `SIMULATED` in synthetic demo mode. The integration uses real existing application state without artificial data fabrication.
 
+---
+
+## PHASE 13 ROUTE RESILIENCE & COUNTERFACTUAL ANALYSIS UI DEMONSTRATION (PHASE 13B)
+
+### Step 36: Phase 13B Active Route Resilience & Counterfactual Sensitivity Navigation Integration
+
+- **WHAT WAS BUILT:**
+  Controlled integration of Phase 13A Route Resilience Engine (`routeResilienceEngine.ts`) and Phase 13B Route Resilience Panel (`RouteResiliencePanel.tsx`) into the active Live Navigation view (`NavigationView.tsx`).
+
+- **WHERE in website:**
+  Live Navigation & Vessel Conning Station (`activeView: 'navigation'`)
+
+- **INTEGRATION ARCHITECTURE:**
+  `Active Route Corridor + Vessel Profile + Live Environmental State` $\rightarrow$ `routeResilienceEngine.ts` $\rightarrow$ `RouteResiliencePanel.tsx` $\rightarrow$ `Navigator Review`
+
+- **JUDGE DEMO FLOW:**
+  1. **Open Live Navigation:** Click **"Live Navigation"** on sidebar (`activeView: 'navigation'`).
+  2. **Select Active Route:** Observe active route corridor (e.g. `Recommended Safe Corridor` / `safest`).
+  3. **Observe Route Resilience Panel:** Scroll to **ROUTE RESILIENCE & COUNTERFACTUAL ANALYSIS** panel positioned alongside Voyage State, Hazard Encounter, Uncertainty, Decision-Impact Acquisition, and Decision Reassessment panels.
+  4. **Inspect Engineering Resilience Index:** View the 0–100 Engineering Resilience Score (e.g. `88 / 100`) and verify the mandatory non-guarantee disclaimer (*"Not a probability or safety guarantee."*).
+  5. **Inspect Sensitivity Classification:** View classification badge (`ROBUST`, `SENSITIVE`, or `HIGHLY_SENSITIVE`). Confirm that no route is labeled "best" or "optimal".
+  6. **Inspect Dominant Sensitivity & Aggregates:** Review dominant vulnerability scenario (e.g. `Iceberg Drift Velocity (+20%)`), max risk delta (e.g. `+4.2 pts`), average risk delta, and feasible vs total scenario count (e.g. `6 / 6`).
+  7. **Expand Counterfactual Scenario Perturbations:** Click to expand scenario breakdown list. Inspect individual perturbation cards:
+     - Baseline Control (Unchanged): Zero risk delta reference.
+     - Ocean Current Velocity (+20%): ETA, fuel, and risk index deltas.
+     - Wind Speed (+20%): Risk and fuel consumption deltas.
+     - Sea-Ice Concentration (+10%): Ice class limit check & feasibility status.
+     - Iceberg Drift Velocity (+20%): CPA clearance reduction & risk delta.
+     - Uncertainty Expansion (+25%): Forecast variance impact on risk envelope.
+  8. **Verify Data Provenance:** Panel clearly displays active provenance badge (`REAL`, `SIMULATED`, `HYBRID`, or `UNAVAILABLE`).
+  9. **Verify Route Immutability & Safety Disclaimers:** Confirm explicit disclaimers:
+     - *"Counterfactual analysis does not modify the active route."*
+     - *"Route changes require navigator review."*
+  10. **Confirm No Automatic Replanning:** Demonstrate that active route geometry, waypoints, and vessel guidance remain 100% unchanged.
+
+- **JUDGE-FACING STATEMENT:**
+  > *"CRYO NAV does not assume its forecast is perfect or claim guaranteed safety. It evaluates how sensitive the active route is to plausible environmental perturbations and provides transparent engineering decision support while leaving full operational authority with the navigator."*
+
+
 
 
 
