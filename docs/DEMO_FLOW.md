@@ -619,6 +619,40 @@ This document provides the exact sequence of actions to demonstrate the full CRY
 - **JUDGE-FACING STATEMENT:**
   > *"CRYO NAV does not command Sentinel-1 to acquire imagery on demand. It searches for and analyzes available real Sentinel-1 acquisitions covering the selected area. Phase 7C.4 introduces area-centric SAR analysis. SAR candidates remain an internal analytical result rather than a permanent navigation-map layer."*
 
+---
+
+## PHASE 9 OFFLINE-FIRST NAVIGATION DEMONSTRATION (PHASE 9C INTEGRATION)
+
+### Step 31: Phase 9 Offline-First Navigation Demonstration Flow
+
+- **WHERE in website:** Main Live Navigation View (`activeView: 'navigation'`)
+- **EXACT STEP-BY-STEP DEMO SEQUENCE:**
+
+1. **Open CRYO NAV**: Launch application at `http://localhost:3000`.
+2. **Navigate to Live Navigation**: Click **"Live Navigation"** on sidebar.
+3. **Observe Offline Status Panel**: Inspect the new top **Offline Connectivity & Readiness Panel**.
+   - **Connection State:** Displays `ONLINE` with green indicator.
+   - **Local Data Availability:** Displays `AVAILABLE` or `PARTIAL`.
+   - **Last Sync Timestamp:** Displays ISO timestamp of latest background cache sync.
+   - **Dataset Provenance Table:** Shows Sea Ice (`REAL`), Ocean (`REAL`), Weather (`REAL`), Icebergs (`REAL`), Route (`REAL`), Voyage State (`REAL`) with `Live data` labels.
+4. **Disable Network Connectivity**: Disable network adapter or toggle browser Offline mode.
+5. **Observe Instant State Transition**:
+   - Connection status switches to **`OFFLINE`** (`Operating from cached data`).
+   - Data stream labels transition from `Live data` to **`Cached data`**.
+   - Data provenance labels remain preserved (cached `REAL` data stays `REAL`, cached `SIMULATED` data stays `SIMULATED`).
+6. **Verify Navigation System Usability**:
+   - Navigation screen, interactive map, voyage telemetry, route planner, and iceberg encounter panel remain fully responsive and functional.
+   - System does NOT crash, block interaction, or display blank screens.
+   - System does NOT inject synthetic fallback data or claim cached data is live.
+7. **Restore Network Connectivity**:
+   - Re-enable network adapter.
+   - Status transitions back to **`ONLINE`** (`Live data available`).
+   - System maintains distinction that sync occurs only upon explicit update without falsely claiming unperformed syncs.
+
+- **JUDGE-FACING STATEMENT:**
+  > *"CRYO NAV does not simply stop when connectivity disappears. Instead, the navigation interface remains available, last verified data remains locally accessible in IndexedDB storage, data age and provenance are visible, cached and live information are clearly distinguished, and the system never fabricates missing data."*
+
+
 
 
 
