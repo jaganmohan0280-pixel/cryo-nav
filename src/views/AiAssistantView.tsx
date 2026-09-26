@@ -1,6 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { buildNavigationAssistantContext } from '../services/navigationAssistantContextEngine';
+import {
+  buildNavigationAssistantContext,
+  MANDATORY_NAVIGATOR_DISCLAIMER,
+} from '../services/navigationAssistantContextEngine';
+import {
+  generateLlmNavigationExplanation,
+  LlmExplanationResult,
+  SERVICE_UNAVAILABLE_MESSAGE,
+} from '../services/navigationAssistantLlm';
 import { NavigationAssistantPanel } from '../components/navigation/NavigationAssistantPanel';
 import { evaluateAllRouteHazards } from '../services/hazardEncounterEngine';
 import { evaluateUncertainty } from '../services/uncertaintyEngine';
@@ -25,6 +33,9 @@ export const AiAssistantView: React.FC = () => {
     environmentalMode,
     gpsTracking,
   } = useApp();
+
+  const [llmResult, setLlmResult] = useState<LlmExplanationResult | null>(null);
+  const [isLoadingLlm, setIsLoadingLlm] = useState<boolean>(false);
 
   const activeRoute = recommendedRoute || routes[0] || null;
 
@@ -154,11 +165,42 @@ export const AiAssistantView: React.FC = () => {
     environmentalMode,
   ]);
 
+  const handleAskQuery = async (query: string): Promise<LlmExplanationResult | null> => {
+    if (!assistantContextResult) return null;
+    setIsLoadingLlm(true);
+    try {
+      const result = await generateLlmNavigationExplanation({
+        contextResult: assistantContextResult,
+        userQuery: query,
+      });
+      setLlmResult(result);
+      return result;
+    } catch (err: any) {
+      const fallbackRes: LlmExplanationResult = {
+        success: false,
+        explanation: `${SERVICE_UNAVAILABLE_MESSAGE}\n\n${assistantContextResult.structuredAnswers.whyCurrentRouteRecommended}`,
+        isFallback: true,
+        error: err?.message || 'UNKNOWN_ERROR',
+        provenance: 'Phase 16B Deterministic Fallback',
+        dataMode: assistantContextResult.dataMode,
+        navigatorAuthorityDisclaimer: MANDATORY_NAVIGATOR_DISCLAIMER,
+        generatedAt: new Date().toISOString(),
+      };
+      setLlmResult(fallbackRes);
+      return fallbackRes;
+    } finally {
+      setIsLoadingLlm(false);
+    }
+  };
+
   return (
     <div className="flex-1 p-6 bg-slate-950 overflow-y-auto min-h-screen text-slate-100 space-y-6">
-      <NavigationAssistantPanel contextResult={assistantContextResult} />
+      <NavigationAssistantPanel
+        contextResult={assistantContextResult}
+        onAskQuery={handleAskQuery}
+        llmResult={llmResult}
+        isLoadingLlm={isLoadingLlm}
+      />
     </div>
   );
 };
-
-

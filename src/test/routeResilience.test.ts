@@ -98,8 +98,8 @@ function runRouteResilienceTests() {
       driftSpeedKnots: 1.2,
       driftHeadingDeg: 210,
       confidence: 0.92,
-      provenance: 'USNIC',
-    },
+      provenance: 'USNIC' as any,
+    } as any,
   ];
 
   // ---------------------------------------------------------------------------------------

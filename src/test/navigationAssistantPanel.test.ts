@@ -209,7 +209,6 @@ export function runNavigationAssistantPanelTests() {
     },
     reassessment: {
       reassessmentStatus: 'MONITOR',
-      recommendationStatus: 'MONITOR' as any,
       triggerReasons: ['Routine corridor check'],
       explanation: 'Current route corridor remains stable.',
       changedVariables: [],
@@ -236,7 +235,7 @@ export function runNavigationAssistantPanelTests() {
       timestamp: refTime,
       dataMode: 'REAL',
       provenance: 'Reassessment Engine v12A',
-    },
+    } as any,
     resilience: {
       routeId: 'safest',
       routeName: 'Recommended Safe Route',
@@ -284,7 +283,7 @@ export function runNavigationAssistantPanelTests() {
       dataMode: 'REAL',
       provenance: 'Alert Engine v14A',
       disclaimer: 'CRYO NAV provides decision support',
-    },
+    } as any,
     referenceTimeIso: refTime,
     dataMode: 'REAL',
     provenance: 'Phase 16A Context Engine Test Data',

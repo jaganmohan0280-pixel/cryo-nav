@@ -6,22 +6,28 @@ import {
   MANDATORY_NAVIGATOR_DISCLAIMER,
 } from '../../services/navigationAssistantContextEngine';
 import {
+  LlmExplanationResult,
+  SERVICE_UNAVAILABLE_MESSAGE,
+} from '../../services/navigationAssistantLlm';
+import {
   Bot,
   ShieldCheck,
   HelpCircle,
   AlertTriangle,
-  Compass,
-  Ship,
-  Route,
   Activity,
   CheckCircle2,
   Database,
+  Send,
+  Sparkles,
   Info,
-  Layers,
+  Radio,
 } from 'lucide-react';
 
 export interface NavigationAssistantPanelProps {
   contextResult?: NavigationAssistantContextResult | null;
+  onAskQuery?: (query: string) => Promise<LlmExplanationResult | null>;
+  llmResult?: LlmExplanationResult | null;
+  isLoadingLlm?: boolean;
 }
 
 export type QuestionKey = keyof StructuredAnswers;
@@ -44,10 +50,14 @@ export const QUESTION_DEFINITIONS: QuestionDefinition[] = [
 
 export const NavigationAssistantPanel: React.FC<NavigationAssistantPanelProps> = ({
   contextResult,
+  onAskQuery,
+  llmResult,
+  isLoadingLlm = false,
 }) => {
   const [selectedQuestionKey, setSelectedQuestionKey] = useState<QuestionKey>(
     'whyCurrentRouteRecommended'
   );
+  const [customInputQuery, setCustomInputQuery] = useState<string>('');
 
   const getDataModeBadgeClass = (mode: ContextDataMode) => {
     switch (mode) {
@@ -70,6 +80,21 @@ export const NavigationAssistantPanel: React.FC<NavigationAssistantPanelProps> =
       contextResult.dataMode !== 'UNAVAILABLE');
 
   const selectedAnswer = contextResult?.structuredAnswers?.[selectedQuestionKey] || '';
+
+  const handleSelectQuestion = (q: QuestionDefinition) => {
+    setSelectedQuestionKey(q.key);
+    if (onAskQuery) {
+      onAskQuery(q.label);
+    }
+  };
+
+  const handleCustomSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customInputQuery.trim() || isLoadingLlm) return;
+    if (onAskQuery) {
+      onAskQuery(customInputQuery.trim());
+    }
+  };
 
   return (
     <div
@@ -189,6 +214,74 @@ export const NavigationAssistantPanel: React.FC<NavigationAssistantPanelProps> =
             </div>
           </div>
 
+          {/* Phase 16C Natural Language Inquiry Form */}
+          <div className="bg-slate-950/90 p-4 rounded-xl border border-cyan-900/60 space-y-3">
+            <div className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" /> Natural Language Explanation Query (Phase 16C):
+            </div>
+
+            <form onSubmit={handleCustomSubmit} className="flex gap-2">
+              <input
+                type="text"
+                data-testid="llm-input-box"
+                placeholder="Ask question about routes, iceberg uncertainty, satellite VoI, or resilience..."
+                value={customInputQuery}
+                onChange={(e) => setCustomInputQuery(e.target.value)}
+                className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500 font-sans"
+              />
+              <button
+                type="submit"
+                data-testid="llm-ask-button"
+                disabled={!customInputQuery.trim() || isLoadingLlm}
+                className="px-4 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-600 disabled:opacity-40 text-white font-medium text-xs tracking-wider flex items-center gap-1.5 transition shadow-xs"
+              >
+                {isLoadingLlm ? (
+                  <Sparkles className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+                <span>Ask</span>
+              </button>
+            </form>
+          </div>
+
+          {/* LLM Explanation Output or Fallback Service State Banner */}
+          {isLoadingLlm && (
+            <div className="p-3.5 bg-slate-950 border border-cyan-900 rounded-lg text-xs font-mono text-cyan-300 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 animate-spin text-cyan-400" />
+              <span>Generating grounded natural-language explanation over structured Phase 16A evidence...</span>
+            </div>
+          )}
+
+          {llmResult && (
+            <div data-testid="llm-explanation-area" className="space-y-2">
+              {(llmResult.isFallback || !llmResult.success) && (
+                <div
+                  data-testid="llm-service-unavailable-banner"
+                  className="bg-amber-950/70 border border-amber-800/80 p-3 rounded-lg text-xs font-mono text-amber-300 flex items-start gap-2"
+                >
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block">SERVICE NOTICE:</span>
+                    {SERVICE_UNAVAILABLE_MESSAGE}
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-slate-950 p-4 rounded-xl border border-cyan-800/80 space-y-2">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2 text-xs font-mono">
+                  <span className="font-bold text-cyan-400 uppercase flex items-center gap-1.5">
+                    <Bot className="w-4 h-4 text-cyan-400" /> Natural Language Grounded Explanation:
+                  </span>
+                  <span className="text-[10px] text-slate-400">{llmResult.provenance}</span>
+                </div>
+                <p className="text-xs text-slate-200 font-sans font-medium leading-relaxed whitespace-pre-wrap pt-1">
+                  {llmResult.explanation}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* 3. Quick Question Buttons (8 Phase 16A Questions) */}
           <div className="space-y-2">
             <div className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -206,7 +299,7 @@ export const NavigationAssistantPanel: React.FC<NavigationAssistantPanelProps> =
                     key={q.key}
                     type="button"
                     data-testid={`question-btn-${q.key}`}
-                    onClick={() => setSelectedQuestionKey(q.key)}
+                    onClick={() => handleSelectQuestion(q)}
                     className={`p-2.5 rounded-lg text-xs font-semibold text-left transition-all duration-200 flex items-center justify-between border ${
                       isSelected
                         ? 'bg-cyan-950/90 text-cyan-300 border-cyan-600 shadow-md ring-1 ring-cyan-500/50'
