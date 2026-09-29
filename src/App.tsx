@@ -45,7 +45,7 @@ const MainContent: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50">
+    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-[#F3F0E8]">
       <Header />
       <main className="flex-1 overflow-hidden relative flex flex-col">
         {renderActiveView()}
@@ -57,7 +57,7 @@ const MainContent: React.FC = () => {
 export default function App() {
   return (
     <AppProvider>
-      <div className="flex h-screen w-screen overflow-hidden bg-slate-50 text-slate-900 font-sans select-none">
+      <div className="flex h-screen w-screen overflow-hidden bg-[#F3F0E8] text-[#263238] font-sans select-none">
         <Sidebar />
         <MainContent />
       </div>

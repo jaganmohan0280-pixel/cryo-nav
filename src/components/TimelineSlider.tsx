@@ -21,19 +21,19 @@ export const TimelineSlider: React.FC = () => {
   }, [isPlaying, forecastHorizonHours, setForecastHorizonHours]);
 
   return (
-    <div className="h-12 bg-white border-t border-slate-200 px-4 flex items-center justify-between z-20 shrink-0 select-none">
+    <div className="h-12 bg-white border-t border-[#DCE7E7] px-4 flex items-center justify-between z-20 shrink-0 select-none font-sans">
       {/* Play / Step Controls */}
       <div className="flex items-center gap-2">
         <button
           onClick={() => setIsPlaying(!isPlaying)}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold border transition ${
+          className={`flex items-center gap-1.5 px-3 py-1 rounded-[8px] text-xs font-semibold border transition ${
             isPlaying
-              ? 'bg-amber-100 border-amber-300 text-amber-900'
-              : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700'
+              ? 'bg-[#FFF7DE] border-[#F6D77A] text-[#735A1E]'
+              : 'bg-[#F5F7F7] hover:bg-[#E8F8F6] border-[#DCE7E7] text-[#075563]'
           }`}
         >
           {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-          <span className="hidden sm:inline">{isPlaying ? 'Pause' : 'Animate Drift'}</span>
+          <span className="hidden sm:inline">{isPlaying ? 'Pause' : 'Animate drift'}</span>
         </button>
 
         <button
@@ -42,16 +42,16 @@ export const TimelineSlider: React.FC = () => {
             setForecastHorizonHours(0);
           }}
           title="Reset to Present State (0h)"
-          className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-300 transition"
+          className="p-1 rounded-[8px] bg-[#F5F7F7] hover:bg-[#E8F8F6] text-[#63777B] hover:text-[#075563] border border-[#DCE7E7] transition"
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
 
-        <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-600 font-mono pl-2">
-          <Clock className="w-3.5 h-3.5 text-slate-700" />
-          <span>FORECAST HORIZON:</span>
-          <span className="text-slate-900 font-bold">
-            {forecastHorizonHours === 0 ? 'NOW (T+0h)' : `+${forecastHorizonHours} HOURS`}
+        <div className="hidden md:flex items-center gap-1.5 text-xs text-[#63777B] pl-2 font-sans">
+          <Clock className="w-3.5 h-3.5 text-[#075563]" />
+          <span>Forecast Horizon:</span>
+          <span className="text-[#18343A] font-semibold">
+            {forecastHorizonHours === 0 ? 'Now' : `+${forecastHorizonHours} h`}
           </span>
         </div>
       </div>
@@ -67,33 +67,33 @@ export const TimelineSlider: React.FC = () => {
                 setIsPlaying(false);
                 setForecastHorizonHours(h);
               }}
-              className={`px-2.5 py-0.5 rounded text-[11px] font-mono font-bold transition ${
+              className={`px-3 py-1 rounded-[8px] text-xs font-semibold transition ${
                 isSelected
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200'
+                  ? 'bg-[#2BB9BD] text-white shadow-2xs'
+                  : 'bg-[#F5F7F7] text-[#63777B] hover:text-[#075563] hover:bg-[#E8F8F6] border border-[#DCE7E7]'
               }`}
             >
-              {h === 0 ? 'T+0' : `+${h}h`}
+              {h === 0 ? 'Now' : `+${h} h`}
             </button>
           );
         })}
       </div>
 
       {/* Uncertainty Indicator */}
-      <div className="hidden lg:flex items-center gap-3 text-[11px] font-mono">
-        <div className="flex items-center gap-1.5 text-slate-500">
+      <div className="hidden lg:flex items-center gap-3 text-xs font-sans">
+        <div className="flex items-center gap-1.5 text-[#63777B]">
           <span>Drift Uncertainty:</span>
           <span
             className={`font-semibold ${
               forecastHorizonHours > 24
-                ? 'text-amber-700'
+                ? 'text-[#8A6A22]'
                 : forecastHorizonHours > 0
-                ? 'text-blue-700'
-                : 'text-emerald-700'
+                ? 'text-[#075563]'
+                : 'text-[#3F705A]'
             }`}
           >
             {forecastHorizonHours === 0
-              ? '±0.8 nm (SAR Validated)'
+              ? '±0.8 nm (SAR validated)'
               : forecastHorizonHours <= 12
               ? '±2.4 nm'
               : forecastHorizonHours <= 24
@@ -102,7 +102,7 @@ export const TimelineSlider: React.FC = () => {
           </span>
         </div>
 
-        <div className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[10px] text-slate-600 font-medium">
+        <div className="px-2.5 py-0.5 rounded-[6px] bg-[#E8F8F6] border border-[#DCE7E7] text-[11px] text-[#075563] font-medium">
           Baseline Dynamic Model
         </div>
       </div>

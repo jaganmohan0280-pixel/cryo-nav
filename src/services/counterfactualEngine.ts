@@ -375,9 +375,9 @@ export function runCounterfactualScenario(
     } else {
       stability = 'SENSITIVE';
     }
-  } else if (Math.abs(riskChange) > 20 || hazardDiff > 1) {
+  } else if (Math.abs(riskChange) > 15 || hazardDiff > 1 || scenario.perturbationValue >= 40) {
     stability = 'HIGHLY_SENSITIVE';
-  } else if (Math.abs(riskChange) > 15 || hazardDiff > 0 || routeChanged) {
+  } else if (Math.abs(riskChange) > 5 || hazardDiff > 0 || routeChanged || scenario.perturbationValue >= 20) {
     stability = 'SENSITIVE';
   } else {
     stability = 'ROBUST';

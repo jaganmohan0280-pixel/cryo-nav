@@ -265,7 +265,7 @@ export const UncertaintyZonePanel: React.FC<UncertaintyZonePanelProps> = ({
 
   const displayRadius =
     uncertaintyRadiusNm !== undefined && uncertaintyRadiusNm !== null
-      ? `${uncertaintyRadiusNm.toFixed(1)} nm`
+      ? `±${uncertaintyRadiusNm.toFixed(1)} nm`
       : uncertaintyEnvelopeLabel || 'Envelope unavailable';
 
   return (

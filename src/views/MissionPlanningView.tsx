@@ -122,16 +122,16 @@ export const MissionPlanningView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#F5F7F7] font-sans">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#DCE7E7] pb-4">
           <div>
-            <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-slate-800" />
+            <h1 className="text-xl font-semibold text-[#075563] flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-[#2BB9BD]" />
               Antarctic Mission Planning & Vessel Parameters
             </h1>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-[#63777B] mt-1 font-normal">
               Configure vessel constraints, polar waypoints, risk tolerances, and exclusion zones.
             </p>
           </div>
@@ -140,9 +140,9 @@ export const MissionPlanningView: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveView('dashboard')}
-              className="px-3 py-1.5 rounded text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-[8px] text-xs font-semibold bg-[#2BB9BD] hover:bg-[#22A8AC] text-white shadow-2xs transition flex items-center gap-1.5"
             >
-              <span>View On Map</span>
+              <span>View on map</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -150,13 +150,13 @@ export const MissionPlanningView: React.FC = () => {
 
         {/* Ice Capability Validation Warning */}
         {iceLimitExceeded && (
-          <div className="p-3 rounded bg-red-50 border border-red-200 text-red-900 text-xs flex items-start gap-2.5 shadow-xs">
-            <AlertTriangle className="w-4 h-4 text-red-700 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-[12px] bg-[#FDECEF] border border-[#F29BA8] text-[#18343A] text-xs flex items-start gap-2.5 shadow-2xs">
+            <AlertTriangle className="w-4 h-4 text-[#9A4F5B] shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold">Ice Rating Constraint Violation:</p>
-              <p className="text-[11px] text-red-800">
+              <p className="font-semibold text-[#9A4F5B]">Ice rating constraint violation:</p>
+              <p className="text-[13px] text-[#63777B]">
                 Selected vessel ({selectedVessel.name}) is certified for up to{' '}
-                <strong>{selectedVessel.maxSeaIceConcentrationPercent}%</strong> sea-ice concentration.
+                <strong className="text-[#18343A]">{selectedVessel.maxSeaIceConcentrationPercent}%</strong> sea-ice concentration.
                 Mission limit of {formData.maxSeaIceConcentration}% exceeds hull certification.
               </p>
             </div>
@@ -180,12 +180,12 @@ export const MissionPlanningView: React.FC = () => {
 
         <form onSubmit={handleSaveMission} className="space-y-6">
           {/* Section 1: Vessel Selection & Constraints */}
-          <div className="bg-white p-4 rounded border border-slate-200 space-y-4 shadow-xs">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-              <span className="text-xs font-bold text-slate-900 uppercase font-mono flex items-center gap-2">
-                <Compass className="w-4 h-4 text-slate-700" /> Assigned Polar Vessel
+          <div className="bg-white p-5 rounded-[12px] border border-[#DCE7E7] space-y-4 shadow-2xs">
+            <div className="flex items-center justify-between border-b border-[#DCE7E7] pb-2.5">
+              <span className="text-sm font-semibold text-[#075563] flex items-center gap-2">
+                <Compass className="w-4 h-4 text-[#2BB9BD]" /> Assigned Polar Vessel
               </span>
-              <span className="text-[10px] text-slate-500 font-mono">Governs Route Feasibility</span>
+              <span className="text-xs text-[#63777B]">Governs route feasibility</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -195,18 +195,18 @@ export const MissionPlanningView: React.FC = () => {
                   <div
                     key={v.id}
                     onClick={() => handleVesselChange(v.id)}
-                    className={`p-3 rounded border cursor-pointer transition ${
+                    className={`p-3.5 rounded-[10px] border cursor-pointer transition ${
                       isSelected
-                        ? 'bg-slate-100 border-slate-900 text-slate-900 shadow-xs'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                        ? 'bg-[#D8F3F1] border-[#2BB9BD] text-[#075563] shadow-2xs font-semibold'
+                        : 'bg-white border-[#DCE7E7] text-[#63777B] hover:border-[#2BB9BD]'
                     }`}
                   >
-                    <div className="font-bold text-xs text-slate-900 mb-1">{v.name}</div>
-                    <div className="text-[10px] font-mono text-blue-700 font-semibold mb-2">{v.iceClass}</div>
-                    <div className="text-[11px] font-mono space-y-0.5 text-slate-600">
-                      <div>Max Ice: <span className="text-slate-900 font-bold">{v.maxSeaIceConcentrationPercent}%</span></div>
-                      <div>Speed: <span className="text-slate-900 font-bold">{v.cruisingSpeedKnots} kt</span></div>
-                      <div>Draft: <span className="text-slate-900 font-bold">{v.draftMeters}m</span></div>
+                    <div className="font-semibold text-xs text-[#18343A] mb-1">{v.name}</div>
+                    <div className="text-xs text-[#075563] font-semibold mb-2">{v.iceClass}</div>
+                    <div className="text-xs space-y-1 text-[#63777B]">
+                      <div>Max ice rating: <span className="text-[#18343A] font-semibold">{v.maxSeaIceConcentrationPercent}%</span></div>
+                      <div>Cruising speed: <span className="text-[#18343A] font-semibold">{v.cruisingSpeedKnots} kts</span></div>
+                      <div>Vessel draft: <span className="text-[#18343A] font-semibold">{v.draftMeters} m</span></div>
                     </div>
                   </div>
                 );
@@ -215,30 +215,30 @@ export const MissionPlanningView: React.FC = () => {
           </div>
 
           {/* Section 2: Mission Parameters */}
-          <div className="bg-white p-4 rounded border border-slate-200 space-y-4 shadow-xs">
-            <div className="border-b border-slate-200 pb-2">
-              <span className="text-xs font-bold text-slate-900 uppercase font-mono">
+          <div className="bg-white p-5 rounded-[12px] border border-[#DCE7E7] space-y-4 shadow-2xs">
+            <div className="border-b border-[#DCE7E7] pb-2.5">
+              <span className="text-sm font-semibold text-[#075563]">
                 Mission Logistics & Voyage Profile
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-mono font-semibold text-slate-700 mb-1">Mission Title</label>
+                <label className="block text-xs font-medium text-[#63777B] mb-1">Mission title</label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-slate-900 font-sans"
+                  className="w-full bg-white border border-[#DCE7E7] rounded-[8px] px-3 py-1.5 text-xs text-[#18343A] focus:outline-none focus:border-[#2BB9BD] font-sans"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-mono font-semibold text-slate-700 mb-1">Mission Type</label>
+                <label className="block text-xs font-medium text-[#63777B] mb-1">Mission type</label>
                 <select
                   value={formData.missionType}
                   onChange={(e) => setFormData({ ...formData, missionType: e.target.value as MissionType })}
-                  className="w-full bg-slate-50 border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-slate-900 font-mono"
+                  className="w-full bg-white border border-[#DCE7E7] rounded-[8px] px-3 py-1.5 text-xs text-[#18343A] focus:outline-none focus:border-[#2BB9BD] font-sans"
                 >
                   <option value="Research">Research (Oceanographic & Glaciology)</option>
                   <option value="Logistics">Logistics (Station Cargo Transfer)</option>
@@ -249,21 +249,21 @@ export const MissionPlanningView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-mono font-semibold text-slate-700 mb-1">Departure Time (UTC)</label>
+                <label className="block text-xs font-medium text-[#63777B] mb-1">Departure time (UTC)</label>
                 <input
                   type="datetime-local"
                   value={formData.departureTime}
                   onChange={(e) => setFormData({ ...formData, departureTime: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-slate-900 font-mono"
+                  className="w-full bg-white border border-[#DCE7E7] rounded-[8px] px-3 py-1.5 text-xs text-[#18343A] focus:outline-none focus:border-[#2BB9BD] font-sans"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-mono font-semibold text-slate-700 mb-1">Mission Priority</label>
+                <label className="block text-xs font-medium text-[#63777B] mb-1">Mission priority</label>
                 <select
                   value={formData.priority}
                   onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
-                  className="w-full bg-slate-50 border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-slate-900 font-mono"
+                  className="w-full bg-white border border-[#DCE7E7] rounded-[8px] px-3 py-1.5 text-xs text-[#18343A] focus:outline-none focus:border-[#2BB9BD] font-sans"
                 >
                   <option value="Normal">Normal Operational Schedule</option>
                   <option value="High">High (Weather Window Constrained)</option>
@@ -274,20 +274,20 @@ export const MissionPlanningView: React.FC = () => {
           </div>
 
           {/* Section 3: Route Preference Weights */}
-          <div className="bg-white p-4 rounded border border-slate-200 space-y-4 shadow-xs">
-            <div className="border-b border-slate-200 pb-2">
-              <span className="text-xs font-bold text-slate-900 uppercase font-mono">
+          <div className="bg-white p-5 rounded-[12px] border border-[#DCE7E7] space-y-4 shadow-2xs">
+            <div className="border-b border-[#DCE7E7] pb-2.5">
+              <span className="text-sm font-semibold text-[#075563]">
                 Optimization Policies & Tolerances
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-mono font-semibold text-slate-700 mb-1">Risk Preference</label>
+                <label className="block text-xs font-medium text-[#63777B] mb-1">Risk preference</label>
                 <select
                   value={formData.riskPreference}
                   onChange={(e) => setFormData({ ...formData, riskPreference: e.target.value as RiskPreference })}
-                  className="w-full bg-slate-50 border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-slate-900 font-mono"
+                  className="w-full bg-white border border-[#DCE7E7] rounded-[8px] px-3 py-1.5 text-xs text-[#18343A] focus:outline-none focus:border-[#2BB9BD] font-sans"
                 >
                   <option value="Conservative">Conservative (Avoids all close icebergs)</option>
                   <option value="Balanced">Balanced (Standard multi-objective)</option>
@@ -296,11 +296,11 @@ export const MissionPlanningView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-mono font-semibold text-slate-700 mb-1">Fuel Preference</label>
+                <label className="block text-xs font-medium text-[#63777B] mb-1">Fuel preference</label>
                 <select
                   value={formData.fuelPreference}
                   onChange={(e) => setFormData({ ...formData, fuelPreference: e.target.value as FuelPreference })}
-                  className="w-full bg-slate-50 border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-slate-900 font-mono"
+                  className="w-full bg-white border border-[#DCE7E7] rounded-[8px] px-3 py-1.5 text-xs text-[#18343A] focus:outline-none focus:border-[#2BB9BD] font-sans"
                 >
                   <option value="Standard">Standard Economic Speed</option>
                   <option value="High Efficiency">High Efficiency (Lowest burn)</option>
@@ -309,8 +309,8 @@ export const MissionPlanningView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-mono font-semibold text-slate-700 mb-1">
-                  Max Sea-Ice Limit: {formData.maxSeaIceConcentration}%
+                <label className="block text-xs font-medium text-[#63777B] mb-1">
+                  Max sea-ice limit: {formData.maxSeaIceConcentration}%
                 </label>
                 <input
                   type="range"
@@ -319,42 +319,42 @@ export const MissionPlanningView: React.FC = () => {
                   step="5"
                   value={formData.maxSeaIceConcentration}
                   onChange={(e) => setFormData({ ...formData, maxSeaIceConcentration: Number(e.target.value) })}
-                  className="w-full mt-2 accent-slate-900"
+                  className="w-full mt-2 accent-[#2BB9BD]"
                 />
               </div>
             </div>
           </div>
 
           {/* Section 4: Research Waypoints */}
-          <div className="bg-white p-4 rounded border border-slate-200 space-y-4 shadow-xs">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-              <span className="text-xs font-bold text-slate-900 uppercase font-mono">
+          <div className="bg-white p-5 rounded-[12px] border border-[#DCE7E7] space-y-4 shadow-2xs">
+            <div className="flex items-center justify-between border-b border-[#DCE7E7] pb-2.5">
+              <span className="text-sm font-semibold text-[#075563]">
                 Intermediate Research Waypoints ({waypoints.length})
               </span>
-              <span className="text-[10px] text-slate-500 font-mono">Must be incorporated by router</span>
+              <span className="text-xs text-[#63777B]">Must be incorporated by router</span>
             </div>
 
             <div className="space-y-2">
               {waypoints.map((wp) => (
                 <div
                   key={wp.id}
-                  className="flex items-center justify-between p-2.5 rounded bg-slate-50 border border-slate-200 text-xs font-mono"
+                  className="flex items-center justify-between p-2.5 rounded-[8px] bg-[#F5F7F7] border border-[#DCE7E7] text-xs font-sans"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded bg-slate-900 text-white flex items-center justify-center font-bold text-[10px]">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-5 h-5 rounded-[4px] bg-[#075563] text-white flex items-center justify-center font-semibold text-[11px]">
                       {wp.order}
                     </span>
-                    <span className="text-slate-900 font-sans font-semibold">{wp.name}</span>
-                    <span className="text-slate-500 text-[11px]">
+                    <span className="text-[#18343A] font-semibold">{wp.name}</span>
+                    <span className="text-[#63777B] text-xs">
                       ({Math.abs(wp.lat).toFixed(2)}°S, {Math.abs(wp.lon).toFixed(2)}°W)
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-[11px] text-slate-600 font-medium">{wp.stopDurationHours || 0}h stop</span>
+                    <span className="text-xs text-[#63777B] font-medium">{wp.stopDurationHours || 0}h stop</span>
                     <button
                       type="button"
                       onClick={() => handleRemoveWaypoint(wp.id)}
-                      className="text-slate-400 hover:text-red-600 p-1"
+                      className="text-[#8B9A9D] hover:text-[#F29BA8] p-1"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -364,13 +364,13 @@ export const MissionPlanningView: React.FC = () => {
             </div>
 
             {/* Add Waypoint Row */}
-            <div className="pt-2 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
+            <div className="pt-2.5 border-t border-[#DCE7E7] grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
               <input
                 type="text"
                 placeholder="Waypoint / Station Name"
                 value={newWpName}
                 onChange={(e) => setNewWpName(e.target.value)}
-                className="bg-slate-50 border border-slate-300 rounded px-2.5 py-1 text-slate-900 focus:outline-none focus:border-slate-900"
+                className="bg-white border border-[#DCE7E7] rounded-[8px] px-2.5 py-1.5 text-[#18343A] focus:outline-none focus:border-[#2BB9BD]"
               />
               <input
                 type="number"
@@ -378,7 +378,7 @@ export const MissionPlanningView: React.FC = () => {
                 placeholder="Lat (e.g. -63.5)"
                 value={newWpLat}
                 onChange={(e) => setNewWpLat(Number(e.target.value))}
-                className="bg-slate-50 border border-slate-300 rounded px-2.5 py-1 text-slate-900 font-mono"
+                className="bg-white border border-[#DCE7E7] rounded-[8px] px-2.5 py-1.5 text-[#18343A]"
               />
               <input
                 type="number"
@@ -386,14 +386,14 @@ export const MissionPlanningView: React.FC = () => {
                 placeholder="Lon (e.g. -62.0)"
                 value={newWpLon}
                 onChange={(e) => setNewWpLon(Number(e.target.value))}
-                className="bg-slate-50 border border-slate-300 rounded px-2.5 py-1 text-slate-900 font-mono"
+                className="bg-white border border-[#DCE7E7] rounded-[8px] px-2.5 py-1.5 text-[#18343A]"
               />
               <button
                 type="button"
                 onClick={handleAddWaypoint}
-                className="px-3 py-1 rounded bg-slate-900 hover:bg-slate-800 text-white font-bold flex items-center justify-center gap-1 transition shadow-xs"
+                className="px-3.5 py-1.5 rounded-[8px] bg-[#2BB9BD] hover:bg-[#22A8AC] text-white font-semibold flex items-center justify-center gap-1.5 transition shadow-2xs"
               >
-                <Plus className="w-3.5 h-3.5" /> Add WP
+                <Plus className="w-3.5 h-3.5" /> Add waypoint
               </button>
             </div>
           </div>
@@ -402,15 +402,15 @@ export const MissionPlanningView: React.FC = () => {
           <div className="flex items-center justify-between pt-2">
             <div>
               {savedSuccess && (
-                <span className="text-xs font-mono text-emerald-700 font-semibold flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-700" /> Mission parameters updated & routes recalculated.
+                <span className="text-xs text-[#3F705A] font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-[#3F705A]" /> Mission parameters updated & routes recalculated.
                 </span>
               )}
             </div>
 
             <button
               type="submit"
-              className="px-5 py-2.5 rounded text-xs font-bold uppercase tracking-wider bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition flex items-center gap-2"
+              className="px-5 py-2.5 rounded-[8px] text-xs font-semibold bg-[#2BB9BD] hover:bg-[#22A8AC] text-white shadow-2xs transition flex items-center gap-2"
             >
               <Compass className="w-4 h-4" />
               Save Mission & Recalculate

@@ -61,7 +61,7 @@ export function evaluateProductDecisionImpact(
   environmentalMode: EnvironmentalDataMode = 'REAL'
 ): DataAcquisitionRecommendation {
   const recommendedRoute = activeRoutes.find((r) => r.isRecommended) || activeRoutes[0];
-  const fp = product.footprint;
+  const fp = product?.footprint || { centerLat: -70.0, centerLon: 40.0, radiusNm: 60, description: 'Default East Antarctic Corridor' };
 
   // 1. SPATIAL RELEVANCE — Route Corridor Overlap (Recommended vs Alternatives vs Hazards)
   let recCoveredNm = 0;
@@ -128,7 +128,7 @@ export function evaluateProductDecisionImpact(
   // 3. DECISION RELEVANCE — Alignment with Phase 4 Dominant Confidence Limiting Factor
   let decisionRelevance = 50;
   const primaryFactor = decisionConfidence?.primaryLimitingFactor || 'ICEBERG TRAJECTORY UNCERTAINTY';
-  const sensorLower = (product.sensor + ' ' + product.productType + ' ' + product.name).toLowerCase();
+  const sensorLower = ((product?.sensor || '') + ' ' + (product?.productType || '') + ' ' + (product?.name || '')).toLowerCase();
 
   if (primaryFactor.toLowerCase().includes('iceberg') || primaryFactor.toLowerCase().includes('trajectory')) {
     if (sensorLower.includes('sar') || sensorLower.includes('iceberg') || sensorLower.includes('radar')) {
@@ -170,7 +170,7 @@ export function evaluateProductDecisionImpact(
   }
 
   // 5. TEMPORAL RELEVANCE & FRESHNESS BENEFIT
-  const acquisitionTime = new Date(product.acquisitionTime).getTime();
+  const acquisitionTime = new Date(product?.acquisitionTime || Date.now()).getTime();
   const now = Date.now();
   const ageHours = Math.max(0, (now - acquisitionTime) / (1000 * 60 * 60));
 
@@ -209,7 +209,7 @@ export function evaluateProductDecisionImpact(
   // 7. ACQUISITION & CONNECTIVITY COST PENALTIES
   // NOTE: Connectivity speeds (ONLINE: 50 MB/min, LIMITED: 8 MB/min, OFFLINE: 0 MB/min)
   // are configurable downlink planning speed assumptions used for heuristic budget scheduling, NOT measured real-world satellite bandwidth.
-  let acquisitionCost = Math.min(100, Math.round((product.sizeMb / 400) * 100)); // Larger files cost more
+  let acquisitionCost = Math.min(100, Math.round(((product?.sizeMb || 100) / 400) * 100)); // Larger files cost more
   let connectivityCost = 0;
   let connectivityFactor = 1.0;
 
@@ -218,7 +218,7 @@ export function evaluateProductDecisionImpact(
     connectivityFactor = 1.0;
   } else if (connection === 'LIMITED') {
     connectivityCost = 60;
-    connectivityFactor = product.sizeMb > 100 ? 0.65 : 1.1; // Prefer smaller high-impact files
+    connectivityFactor = (product?.sizeMb || 100) > 100 ? 0.65 : 1.1; // Prefer smaller high-impact files
   } else if (connection === 'OFFLINE') {
     connectivityCost = 100;
     connectivityFactor = 0.0;

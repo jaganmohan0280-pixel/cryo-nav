@@ -1,52 +1,205 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
-/* CRYO NAV Professional Enterprise Theme */
+/* CRYO NAV — Reference-Based Teal / Turquoise Professional Theme */
 :root {
   color-scheme: light;
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  
+  /* Deep Teal (Brand / Sidebar) */
+  --color-teal-deep: #075563;
+  --color-teal-sidebar: #075563;
+  
+  /* Primary Turquoise (Main Accent) */
+  --color-turquoise: #2BB9BD;
+  --color-turquoise-hover: #22A8AC;
+  --color-turquoise-light: #D8F3F1;
+  --color-turquoise-pale: #E8F8F6;
+  
+  /* Workspace Canvas & Cards */
+  --color-bg-app: #F5F7F7;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-surface-sec: #E8F8F6;
+  --color-bg-surface-sel: #D8F3F1;
+  
+  /* Typography */
+  --color-text-primary: #18343A;
+  --color-text-body: #18343A;
+  --color-text-secondary: #63777B;
+  --color-text-muted: #8B9A9D;
+  
+  /* Borders */
+  --color-border: #DCE7E7;
+  --color-border-subtle: #E2EBEB;
+  --color-border-turquoise: #2BB9BD;
+  
+  /* Soft Pastel Semantic Accents */
+  --color-pastel-mint: #A9E2CF;
+  --color-pastel-mint-bg: #E8F7F1;
+  --color-pastel-mint-text: #3F705A;
+  
+  --color-pastel-blue: #9CC8F0;
+  --color-pastel-blue-bg: #EDF5FC;
+  --color-pastel-blue-text: #2C5E8A;
+  
+  --color-pastel-yellow: #F6D77A;
+  --color-pastel-yellow-bg: #FFF7DE;
+  --color-pastel-yellow-text: #8A6A22;
+  
+  --color-pastel-coral: #F29BA8;
+  --color-pastel-coral-bg: #FDECEF;
+  --color-pastel-coral-text: #9A4F5B;
+  
+  --color-pastel-lavender: #B8A9E8;
+  --color-pastel-lavender-bg: #F2EFFB;
+  --color-pastel-lavender-text: #5B4A9A;
+  
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --shadow-subtle: 0 2px 10px rgba(7, 85, 99, 0.06);
+  --shadow-hover: 0 5px 16px rgba(7, 85, 99, 0.10);
 }
 
 body {
-  background-color: #f8fafc;
-  color: #0f172a;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--color-bg-app);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 400;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbars for operational panels */
+/* Typography Hierarchy Utilities */
+.text-page-title {
+  font-family: var(--font-sans);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-text-primary);
+}
+
+.text-section-title {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--color-text-primary);
+}
+
+.text-subheading {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--color-text-primary);
+}
+
+.text-body-ui {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-text-body);
+}
+
+.text-secondary-ui {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.text-caption-ui {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+/* Rounded Card Language */
+.card-turquoise {
+  background-color: #FFFFFF;
+  border: 1px solid #DCE7E7;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(7, 85, 99, 0.06);
+}
+
+.card-turquoise-selected {
+  background-color: #D8F3F1;
+  border: 1px solid #2BB9BD;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(7, 85, 99, 0.08);
+}
+
+/* Buttons */
+.btn-turquoise-primary {
+  background-color: #2BB9BD;
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 13.5px;
+  border-radius: 8px;
+  padding: 8px 16px;
+  transition: background-color 150ms ease-out;
+}
+.btn-turquoise-primary:hover {
+  background-color: #22A8AC;
+}
+
+.btn-turquoise-secondary {
+  background-color: #FFFFFF;
+  border: 1px solid #DCE7E7;
+  color: #075563;
+  font-weight: 600;
+  font-size: 13.5px;
+  border-radius: 8px;
+  padding: 8px 16px;
+  transition: all 150ms ease-out;
+}
+.btn-turquoise-secondary:hover {
+  background-color: #E8F8F6;
+  border-color: #2BB9BD;
+}
+
+/* Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #F5F7F7;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #DCE7E7;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #2BB9BD;
 }
 
-/* Leaflet map custom tiles and controls */
+/* Leaflet map container & popups */
 .leaflet-container {
-  background-color: #e2e8f0 !important;
-  font-family: inherit !important;
+  background-color: #F5F7F7 !important;
+  font-family: var(--font-sans) !important;
 }
 
 .leaflet-popup-content-wrapper {
-  background: #ffffff !important;
-  color: #0f172a !important;
-  border: 1px solid #cbd5e1 !important;
-  border-radius: 6px !important;
-  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.12), 0 2px 4px -1px rgba(0, 0, 0, 0.08) !important;
+  background: #FFFFFF !important;
+  color: #18343A !important;
+  border: 1px solid #DCE7E7 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 14px rgba(7, 85, 99, 0.10) !important;
+  font-family: var(--font-sans) !important;
 }
 
 .leaflet-popup-tip {
-  background: #ffffff !important;
+  background: #FFFFFF !important;
 }
-

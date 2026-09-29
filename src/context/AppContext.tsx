@@ -61,6 +61,19 @@ import { generateRouteAlternatives, calculateIcebergCPA } from '../services/rout
 import { computeIcebergTrajectories } from '../services/trajectoryModel';
 import { forecastSeaIceField } from '../services/seaIceModel';
 import { calculateDistanceNm } from '../services/riskEngine';
+import { buildVoyageState } from '../services/voyageStateEngine';
+import { evaluateAllRouteHazards } from '../services/hazardEncounterEngine';
+import { evaluateUncertainty } from '../services/uncertaintyEngine';
+import { analyzeRouteResilience } from '../services/routeResilienceEngine';
+import { evaluateAcquisitionPriorities } from '../services/decisionImpactAcquisitionEngine';
+import { evaluateDecisionReassessment } from '../services/decisionReassessmentEngine';
+import { evaluateNavigationAlerts } from '../services/navigationAlertEngine';
+import { evaluateModelValidationBatch } from '../services/modelValidationEngine';
+import { buildNavigationDecisionState } from '../services/navigationDecisionStateEngine';
+import {
+  buildNavigationOperationalState,
+  NavigationOperationalState,
+} from '../services/navigationOperationalStateEngine';
 
 export type ActiveView =
   | 'dashboard'
@@ -83,6 +96,7 @@ export interface MapLayerToggles {
   ocean: boolean;
   routes: boolean;
   sarCandidates: boolean;
+  stations: boolean;
 }
 
 interface AppContextType {
@@ -195,6 +209,9 @@ interface AppContextType {
   // Phase 7B — Satellite Product Acquisition & Local Caching State
   satelliteAcquisitionRecords: Record<string, SatelliteAcquisitionRecord>;
   loadCachedAcquisitions: () => Promise<void>;
+
+  // Phase 18C — Authoritative Aggregated Navigation Operational State
+  navigationOperationalState: NavigationOperationalState;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -445,6 +462,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ocean: true,
     routes: true,
     sarCandidates: false,
+    stations: true,
   });
 
   const [connectionState, setConnectionStateInternal] = useState<ConnectionState>('ONLINE');
@@ -666,7 +684,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Decorate icebergs with closest approach encounters to the recommended/selected route
   const displayIcebergs = React.useMemo(() => {
-    const activeRoute = routes.find((r) => r.id === selectedRouteId) || recommendedRoute;
+    const activeRoute =
+      routes.find((r) => r.id === selectedRouteId || (r.labels && r.labels.map((l) => l.toLowerCase()).includes(selectedRouteId))) ||
+      recommendedRoute ||
+      (routes.length > 0 ? routes[0] : null);
     if (!activeRoute) return evaluatedIcebergs;
 
     return evaluatedIcebergs.map((berg) => {
@@ -1079,6 +1100,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ocean: true,
       routes: true,
       sarCandidates: false,
+      stations: true,
     });
     setConnectionStateInternal('ONLINE');
     setIsLiveTelemetry(false);
@@ -1165,6 +1187,166 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveCounterfactualResult(null);
     setBatchSensitivitySummary(null);
   }, []);
+
+  // Phase 18C — Authoritative aggregated end-to-end Navigation Operational State
+  const navigationOperationalState = React.useMemo(() => {
+    const activeRoute = recommendedRoute || (routes && routes.length > 0 ? routes[0] : null);
+    const dataMode = environmentalMode === 'REAL' ? 'REAL' : 'SIMULATED';
+
+    const voyageState = buildVoyageState({
+      selectedVessel,
+      mission,
+      activeRoute,
+      gpsTracking,
+      connectivityState: connectionState,
+      unifiedEnvironment,
+      decisionConfidence,
+      environmentalMode: environmentalMode === 'REAL' ? 'REAL' : 'DEMO',
+    });
+
+    const hazardEvaluation = activeRoute
+      ? evaluateAllRouteHazards(activeRoute, displayIcebergs || [], seaIceCells || [], selectedVessel)
+      : null;
+
+    const targetBerg = displayIcebergs && displayIcebergs.length > 0 ? displayIcebergs[0] : null;
+    const uncertainty = targetBerg
+      ? evaluateUncertainty({
+          hazardId: targetBerg.id,
+          hazardName: targetBerg.name,
+          hazardType: 'ICEBERG',
+          location: { lat: targetBerg.lat, lon: targetBerg.lon },
+          baseRadiusNm: targetBerg.uncertaintyRadiusNm || 0.8,
+          confidenceLevel: decisionConfidence?.overallLevel || 'HIGH',
+          freshnessState: 'FRESH',
+          connectionState,
+          forecastHorizonHours: forecastHorizonHours || 0,
+          dataMode,
+        })
+      : null;
+
+    const resilience = activeRoute
+      ? analyzeRouteResilience({
+          route: activeRoute,
+          vessel: selectedVessel,
+          seaIceCells: seaIceCells || [],
+          icebergs: displayIcebergs || [],
+          weather: evaluatedWeather,
+          dataMode,
+        })
+      : null;
+
+    const acquisitionPriorities = activeRoute
+      ? evaluateAcquisitionPriorities({
+          activeRoutes: routes || [activeRoute],
+          selectedRouteId: activeRoute.id,
+          candidateProducts: evaluatedSatelliteProducts || [],
+          icebergs: displayIcebergs || [],
+          seaIceCells: seaIceCells || [],
+          connectionState,
+          decisionConfidence,
+        })
+      : null;
+
+    const currentState = activeRoute
+      ? {
+          selectedRouteId: activeRoute.id,
+          selectedRouteName: activeRoute.name,
+          confidenceLevel: decisionConfidence?.overallLevel || 'HIGH',
+          freshnessState: 'FRESH',
+          connectionState,
+          routeSensitivity: resilience?.sensitivityClassification || 'ROBUST',
+          uncertaintyRadiusNm: uncertainty?.expandedUncertaintyRadiusNm || 1.0,
+          primaryHazardSeverity: hazardEvaluation?.highestSeverity || 'NONE',
+          hazards: hazardEvaluation?.encounters || [],
+          dataMode,
+        }
+      : null;
+
+    const reassessment = currentState && activeRoute
+      ? evaluateDecisionReassessment({
+          previousState: currentState,
+          currentState,
+          activeRoute,
+        })
+      : null;
+
+    const alerts = activeRoute && selectedVessel
+      ? evaluateNavigationAlerts({
+          vessel: selectedVessel,
+          activeRoute,
+          hazards: hazardEvaluation?.encounters || [],
+          seaIceExposure: hazardEvaluation?.seaIceRouteSummary || null,
+          confidenceLevel: decisionConfidence?.overallLevel || 'HIGH',
+          uncertaintyRadiusNm: uncertainty?.expandedUncertaintyRadiusNm || 1.0,
+          freshnessState: 'FRESH',
+          connectionState,
+          gpsState: {
+            lat: gpsTracking.currentLat,
+            lon: gpsTracking.currentLon,
+            headingDeg: gpsTracking.headingDeg,
+            speedKnots: gpsTracking.speedKnots,
+            isAvailable: true,
+          },
+          dataMode,
+        })
+      : null;
+
+    const validationSummary = evaluateModelValidationBatch([], [], 'ICEBERG_TRAJECTORY');
+
+    const decisionState = buildNavigationDecisionState({
+      voyageState,
+      activeRoute,
+      hazards: hazardEvaluation?.encounters || displayIcebergs,
+      seaIceExposure: hazardEvaluation?.seaIceRouteSummary || null,
+      uncertainty,
+      confidence: decisionConfidence,
+      acquisitionPriorities,
+      reassessment,
+      resilience,
+      alerts,
+      validationSummary,
+      connectionState,
+      freshnessState: 'FRESH',
+      dataMode,
+    });
+
+    return buildNavigationOperationalState({
+      mission,
+      vessel: selectedVessel,
+      voyageState,
+      activeRoute,
+      routes,
+      hazards: hazardEvaluation?.encounters || displayIcebergs,
+      seaIceExposure: hazardEvaluation?.seaIceRouteSummary || null,
+      uncertainty,
+      confidence: decisionConfidence,
+      acquisitionPriorities,
+      reassessment,
+      resilience,
+      alerts,
+      validationSummary,
+      decisionState,
+      connectionState,
+      freshnessState: 'FRESH',
+      forecastHorizonHours,
+      dataMode,
+      provenance: `CRYO NAV Operational State Orchestration (${dataMode})`,
+    });
+  }, [
+    mission,
+    selectedVessel,
+    recommendedRoute,
+    routes,
+    displayIcebergs,
+    seaIceCells,
+    evaluatedWeather,
+    gpsTracking,
+    connectionState,
+    forecastHorizonHours,
+    decisionConfidence,
+    environmentalMode,
+    evaluatedSatelliteProducts,
+  ]);
 
   return (
     <AppContext.Provider
@@ -1256,6 +1438,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fetchCdseCatalogue,
         satelliteAcquisitionRecords,
         loadCachedAcquisitions,
+        navigationOperationalState,
       }}
     >
       {children}

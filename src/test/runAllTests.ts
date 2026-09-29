@@ -47,6 +47,13 @@ const p7aResult = runCdseStacTests();
 // 5. Run Phase 7B Satellite Product Acquisition & Caching Tests
 const p7bPromise = runSatelliteAcquisitionTests();
 
+import { runFailureDegradedStateTests } from './failureDegradedState.test';
+import { runFailureDegradedStateUXTests } from './failureDegradedStateUX.test';
+import { runRealDataIntegrityTests } from './realDataIntegrity.test';
+import { runDeploymentReadinessTests } from './deploymentReadiness.test';
+import { runFinalJudgeWorkflowTests } from './finalJudgeWorkflow.test';
+import { runRouteGeographyValidationTests } from './routeGeographyValidation.test';
+
 p7bPromise.then(async (p7bResult) => {
   const p7c1Result = await runSentinel1ValidationTests();
   const p7c2Result = await runSentinel1ProcessingTests();
@@ -67,6 +74,12 @@ p7bPromise.then(async (p7bResult) => {
   runRouteResiliencePanelTests();
   runNavigationAlertPanelTests();
   runModelValidationPanelTests();
+  const p19aResult = runFailureDegradedStateTests();
+  const p19bResult = runFailureDegradedStateUXTests();
+  const p20aResult = await runRealDataIntegrityTests();
+  await runDeploymentReadinessTests();
+  await runFinalJudgeWorkflowTests();
+  await runRouteGeographyValidationTests();
 
   if (
     p5Result.failed > 0 ||
@@ -81,12 +94,15 @@ p7bPromise.then(async (p7bResult) => {
     p8bResult.failed > 0 ||
     p9aResult.failed > 0 ||
     !p9cResult.success ||
-    p12aResult.failed > 0
+    p12aResult.failed > 0 ||
+    p19aResult.failed > 0 ||
+    p19bResult.failed > 0 ||
+    !p20aResult.passed
   ) {
     process.exit(1);
   } else {
     console.log('========================================================================================');
-    console.log('ALL PHASE 4, 5, 6, 7A, 7B, 7C, 8A, 8B, 9A, 9B, 9C, 10, 11, 12, 13, 14 & 15 TESTS PASSED!');
+    console.log('ALL PHASE 4, 5, 6, 7A, 7B, 7C, 8A, 8B, 9A, 9B, 9C, 10, 11, 12, 13, 14, 15, 18, 19, 20A, 20B & 20C TESTS PASSED!');
     console.log('========================================================================================\n');
   }
 });

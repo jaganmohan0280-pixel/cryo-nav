@@ -1005,7 +1005,192 @@ This document provides the exact sequence of actions to demonstrate the full CRY
       - Verify deterministic quick questions remain fully functional.
 
 - **JUDGE-FACING STATEMENT:**
-  > *"CRYO NAV's Phase 16C LLM explanation layer provides controlled natural-language reasoning strictly grounded in authoritative Phase 16A context engine data. The LLM cannot independently compute navigation metrics, cannot issue vessel steering commands, and falls back seamlessly to deterministic CRYO NAV context when the LLM service is unavailable."*
+  > *"CRYO NAV's Phase 17B Navigation Decision State Panel provides a single system-level aggregation display for decision support. It synthesizes outputs from all 10 core engines into a unified decision status without creating new mathematics or attempting autonomous vessel control."*
+
+---
+
+## Phase 18B — Complete End-to-End Judge Demonstration Sequence
+
+This section documents the exact 17-step operational demonstration sequence for presenting CRYO NAV to judges and review panels.
+
+---
+
+### Step 1: Open CRYO NAV
+- **WHERE in website:** Main Web Application Header & Workspace (`activeView: 'dashboard'`)
+- **WHAT JUDGE SEES:** Full CRYO NAV interface loading interactive Antarctic map, top status banner (`ONLINE`, `LIMITED`, `OFFLINE`, `SYNCING`), dataset provenance indicator (`PROVENANCE: SIMULATED` / `REAL`), and main navigation view tabs.
+- **WHAT CRYO NAV IS DOING:** Initializes `AppContext` state, loads environmental data streams, starts connectivity monitor, and sets up baseline vessel and mission configurations.
+- **DATA STATUS:** `SIMULATED` (demo mode) or `REAL` / `HYBRID` (when live Copernicus/USNIC/ECMWF feeds are connected).
+- **VERBAL EXPLANATION:** *"CRYO NAV is an AI-enabled Antarctic navigation decision-support system. It integrates multi-stream environmental feeds, spatial modeling, counterfactual sensitivity analysis, Value-of-Information satellite planning, and natural-language AI explanation into a single workspace."*
+
+---
+
+### Step 2: Open Mission Planning
+- **WHERE in website:** Mission Planning View (`activeView: 'mission'`)
+- **WHAT JUDGE SEES:** Mission configuration panel displaying mission title (*"Marguerite Bay & Rothera Resupply Transit"*), departure timestamp, logistical priorities, and intermediate research waypoints.
+- **WHAT CRYO NAV IS DOING:** Retrieves active `MissionConfig` object from `AppContext` and validates departure windows against environmental operational constraints.
+- **DATA STATUS:** `SIMULATED` (Mission planning parameters).
+- **VERBAL EXPLANATION:** *"The navigator begins by defining or selecting the operational mission parameters, ingress points, and destination research stations."*
+
+---
+
+### Step 3: Select Vessel & Inspect Capabilities
+- **WHERE in website:** Mission Planning View → Fleet Registry & Vessel Cards
+- **WHAT JUDGE SEES:** Fleet selection widget highlighting selected vessel (**`RV Polar Explorer`** — Polar Class PC3 rating, cruising speed 11.5 kts, draft 8.8m, max ice concentration limit 78%, fuel burn rate 24.5 tons/day).
+- **WHAT CRYO NAV IS DOING:** Loads `VesselProfile` properties and evaluates vessel Polar Class ice rating against max sea-ice concentration thresholds.
+- **DATA STATUS:** `SIMULATED` (Fleet profiles based on real Polar Class specifications).
+- **VERBAL EXPLANATION:** *"The system incorporates vessel-specific hydrodynamics and Polar Class structural limits to constrain routing decisions and alert when ice concentration exceeds vessel capabilities."*
+
+---
+
+### Step 4: Set / Confirm Mission Destination
+- **WHERE in website:** Mission Planning View → Origin & Destination Coordinate Optimizer
+- **WHAT JUDGE SEES:** Origin set to *"Drake Passage Transit Gate"* (-59.50°S, -64.50°W) and Destination set to *"Rothera Research Station (UK)"* (-67.57°S, -68.13°W).
+- **WHAT CRYO NAV IS DOING:** Updates origin/destination lat/lon coordinates in `MissionConfig` and triggers spatial path generation (`routingEngine.ts`).
+- **DATA STATUS:** `REAL` geographic station coordinates / `SIMULATED` routing baseline.
+- **VERBAL EXPLANATION:** *"Destination coordinates correspond to real-world Antarctic research stations. Setting the destination initiates multi-objective route corridor calculation."*
+
+---
+
+### Step 5: Enter Live Navigation
+- **WHERE in website:** Live Navigation Station (`activeView: 'navigation'`)
+- **WHAT JUDGE SEES:** Full Live Navigation workspace featuring executive `CURRENT NAVIGATION DECISION STATE` panel, granular telemetry panels, bridge conning instruments, and interactive Leaflet GIS map.
+- **WHAT CRYO NAV IS DOING:** Synthesizes `voyageStateEngine.ts` and `navigationDecisionStateEngine.ts` to present real-time vessel position, active route polyline, and hazard encounter intelligence.
+- **DATA STATUS:** `SIMULATED` (Voyage simulation loop) or `HYBRID` (when combining live satellite/iceberg feeds).
+- **VERBAL EXPLANATION:** *"Entering Live Navigation brings up the operational conning display, showing real-time vessel tracking, telemetry instruments, and decision-support panels."*
+
+---
+
+### Step 6: Observe Current Vessel State
+- **WHERE in website:** Live Navigation View → `VoyageStatePanel` & Bridge Instruments Sidebar
+- **WHAT JUDGE SEES:** Latitude (-64.500°S), Longitude (-64.200°W), True Heading (180°), Speed Over Ground (11.5 kts), Cross-Track Error (XTE ±0.1 nm), Progress %, and Estimated Time of Arrival (ETA).
+- **WHAT CRYO NAV IS DOING:** `voyageStateEngine.ts` continuously computes vessel progress along active route waypoints, tracking XTE, fuel consumption, and ETA.
+- **DATA STATUS:** `SIMULATED` position simulation loop.
+- **VERBAL EXPLANATION:** *"Voyage State Monitoring tracks vessel telemetry, cross-track error, and remaining voyage distance in real time."*
+
+---
+
+### Step 7: Inspect Environmental State
+- **WHERE in website:** Live Navigation View → GIS Map Layer Controls & Telemetry Cards
+- **WHAT JUDGE SEES:** Map overlay displaying sea-ice concentration heatmaps, ocean current vectors, ECMWF weather wind speeds, and tracked iceberg positions.
+- **WHAT CRYO NAV IS DOING:** Integrates environmental streams (`environmentalState.ts`) across Copernicus Marine sea-ice, NEMO 3D ocean hydrodynamics, ECMWF IFS weather, and USNIC iceberg catalog feeds.
+- **DATA STATUS:** `REAL` (when external APIs connected) or `SIMULATED` (demo mode baseline).
+- **VERBAL EXPLANATION:** *"CRYO NAV ingests four distinct environmental feeds—sea ice, ocean currents, weather forecasts, and tracked iceberg observations."*
+
+---
+
+### Step 8: Move Forecast Horizon (Predictions & Uncertainty)
+- **WHERE in website:** Live Navigation View → Interactive Timeline Slider (+0h to +72h)
+- **WHAT JUDGE SEES:** Slider dragging from +0h to +24h / +48h / +72h. Sea-ice concentration fields advect on the map, iceberg drift markers advect along kinematic vectors, and uncertainty circles expand from ±0.8 nm to ±9.8 nm.
+- **WHAT CRYO NAV IS DOING:** `seaIceModel.ts` and `trajectoryModel.ts` advect cryospheric fields; `uncertaintyEngine.ts` expands spatial uncertainty envelopes as forecast horizon increases.
+- **DATA STATUS:** `SIMULATED` predictive models over current environmental baseline.
+- **VERBAL EXPLANATION:** *"Advancing the forecast horizon demonstrates how sea-ice and iceberg drift predictions evolve over time, with uncertainty envelopes expanding as forecast lead time increases."*
+
+---
+
+### Step 9: Identify Hazards (Hazard Encounter Intelligence)
+- **WHERE in website:** Live Navigation View → `HazardEncounterPanel`
+- **WHAT JUDGE SEES:** Hazard cards displaying primary hazard (*"Iceberg A76A"*), Minimum Closest Point of Approach (CPA: 1.2 nm), Time to CPA (TCA: 4.5 hours), severity level (`HIGH`), and source provenance (`USNIC Iceberg Catalog`).
+- **WHAT CRYO NAV IS DOING:** `hazardEncounterEngine.ts` evaluates spatial & temporal corridor interaction between predicted iceberg trajectories and active route waypoints to calculate exact CPA and TCA.
+- **DATA STATUS:** `REAL` (USNIC iceberg track) or `SIMULATED` (demo iceberg track).
+- **VERBAL EXPLANATION:** *"Hazard Encounter Intelligence identifies which specific icebergs or high-concentration ice cells actually intersect the route corridor, calculating exact Closest Point of Approach (CPA) and Time of Closest Approach (TCA)."*
+
+---
+
+### Step 10: Inspect Uncertainty
+- **WHERE in website:** Live Navigation View → `UncertaintyZonePanel`
+- **WHAT JUDGE SEES:** Uncertainty panel displaying expanded radius (±2.1 nm), expansion factor (2.62x), forecast horizon (+24h), confidence level (`HIGH`), freshness (`FRESH`), and caution level (`HIGH_CAUTION`).
+- **WHAT CRYO NAV IS DOING:** `uncertaintyEngine.ts` transforms confidence, freshness, connectivity, and forecast horizon into model uncertainty envelopes without altering route geometry.
+- **DATA STATUS:** `SIMULATED` / `REAL` depending on environmental feed.
+- **VERBAL EXPLANATION:** *"This is a model uncertainty envelope representing forecast variance—it is NOT a confirmed physical hazard boundary or guaranteed collision zone."*
+
+---
+
+### Step 11: Compare Route Behavior & Resilience
+- **WHERE in website:** Live Navigation View → `RouteResiliencePanel`
+- **WHAT JUDGE SEES:** Engineering Resilience Index (85/100), sensitivity classification (`ROBUST`), dominant scenario (*"Iceberg Drift Offset +20%"*), and per-scenario risk/ETA deltas across 5 counterfactual perturbations (Current +20%, Wind +20%, Ice +10%, Drift +20%, Uncertainty +25%).
+- **WHAT CRYO NAV IS DOING:** `routeResilienceEngine.ts` executes counterfactual sensitivity analysis to evaluate route stability under environmental perturbations.
+- **DATA STATUS:** `SIMULATED` counterfactual perturbation scenarios.
+- **VERBAL EXPLANATION:** *"Route Resilience Analysis evaluates how sensitive the active route decision is under what-if environmental perturbations, quantifying stability through an Engineering Resilience Index."*
+
+---
+
+### Step 12: See Which Additional Data Could Change the Decision (VoI Data Acquisition)
+- **WHERE in website:** Live Navigation View → `DecisionImpactAcquisitionPanel`
+- **WHAT JUDGE SEES:** Ranked satellite product list topped by **Sentinel-1C SAR** (`SAT-S1C-001`), displaying **Engineering Priority Index** (87.5/100), affected decision (*"Marguerite Bay Approach Route"*), expected uncertainty reduction (65%), and bandwidth fit.
+- **WHAT CRYO NAV IS DOING:** `decisionImpactAcquisitionEngine.ts` calculates Value of Information (VoI) by pairing confidence limiting factors, route sensitivity, and uncertainty zones against candidate satellite footprints.
+- **DATA STATUS:** `REAL` (CDSE STAC satellite catalog metadata) or `SIMULATED` (candidate footprints).
+- **VERBAL EXPLANATION:** *"The Decision-Impact Engine determines which discoverable satellite observation would most effectively reduce uncertainty and potentially change the route decision. The priority index is strictly an Engineering Priority Index—not a statistical probability."*
+
+---
+
+### Step 13: See Decision Reassessment State
+- **WHERE in website:** Live Navigation View → `DecisionReassessmentPanel`
+- **WHAT JUDGE SEES:** Reassessment status (`MONITOR` or `STABLE`), primary trigger (*"Uncertainty expansion threshold crossed"*), changed variables list, snapshot history, and navigator review flag (`requiresNavigatorReview`).
+- **WHAT CRYO NAV IS DOING:** `decisionReassessmentEngine.ts` compares previous vs current decision state snapshots to detect critical parameter shifts requiring navigator review.
+- **DATA STATUS:** `SIMULATED` / `REAL` state comparison.
+- **VERBAL EXPLANATION:** *"Continuous Decision Reassessment monitors parameter drift across snapshots, signaling whether the decision remains STABLE, requires MONITORING, or warrants REASSESSING."*
+
+---
+
+### Step 14: Observe Navigation Alerts
+- **WHERE in website:** Live Navigation View → `NavigationAlertPanel` & Top Header Alert Bell
+- **WHAT JUDGE SEES:** Total alerts count, alert severity counters (`WARNING: 1`, `INFO: 1`), structured alert cards (*"Iceberg A76A CPA 1.2 nm predicted"*), GPS availability status, and connectivity state (`ONLINE`).
+- **WHAT CRYO NAV IS DOING:** `navigationAlertEngine.ts` evaluates position age, route deviation, CPA breaches, and connectivity changes to generate deduplicated alerts.
+- **DATA STATUS:** `SIMULATED` / `REAL` alert evaluations.
+- **VERBAL EXPLANATION:** *"Navigation Alerts inform the navigator of proximity breaches or stale data. Alerts provide decision-support notifications and do not automatically control vessel maneuvers."*
+
+---
+
+### Step 15: Inspect Retrospective Model Validation
+- **WHERE in website:** Live Navigation View → `ModelValidationPanel`
+- **WHAT JUDGE SEES:** Panel explicitly titled **"RETROSPECTIVE MODEL VALIDATION"**, displaying predictions evaluated (42), matched observations (38), Mean Absolute Error (MAE: 1.15 nm), Root Mean Square Error (RMSE: 1.48 nm), and uncertainty coverage (92.5%).
+- **WHAT CRYO NAV IS DOING:** `modelValidationEngine.ts` compares prior model predictions against subsequent observations to evaluate retrospective accuracy without retraining live models.
+- **DATA STATUS:** `REAL` / `SIMULATED` retrospective validation log.
+- **VERBAL EXPLANATION:** *"Retrospective Model Validation compares past model predictions against subsequently available observations to track MAE and RMSE. It is strictly retrospective validation and does not imply future prediction certainty."*
+
+---
+
+### Step 16: View Final Navigation Decision State (Executive Summary)
+- **WHERE in website:** Live Navigation View → Top `NavigationDecisionStatePanel`
+- **WHAT JUDGE SEES:** Executive panel titled **"CURRENT NAVIGATION DECISION STATE"**, showing overall Decision Status (`MONITOR`), Decision Sensitivity (`ROBUST`), Active Route summary, Hazard CPA summary, Uncertainty radius, Data Acquisition priority, Reassessment status, Alerts count, Validation summary, Overall Provenance badge (`PROVENANCE: SIMULATED` / `HYBRID` / `REAL`), and mandatory navigator disclaimer.
+- **WHAT CRYO NAV IS DOING:** `navigationDecisionStateEngine.ts` synthesizes outputs across all 10 core intelligence engines into a single system-level decision support payload.
+- **DATA STATUS:** `HYBRID` / `REAL` / `SIMULATED` system aggregation.
+- **VERBAL EXPLANATION:** *"The Navigation Decision State Panel provides the executive summary of the entire system, consolidating inputs from all underlying engines into one clear decision status."*
+
+---
+
+### Step 17: Open AI Navigation Assistant to Explain the Decision
+- **WHERE in website:** AI Assistant View (`activeView: 'ai'`)
+- **WHAT JUDGE SEES:** AI Assistant interface displaying structured context chips, quick operational inquiry buttons, structured evidence cards, natural-language explanation container, dataset provenance badges, and mandatory navigator authority disclaimer.
+- **USER ACTION:** Click quick question button or type:
+  - *"What is the current navigation decision state?"*
+  - *"What is the main hazard?"*
+  - *"How uncertain is the prediction?"*
+  - *"Which additional data would be most valuable?"*
+  - *"Why does the route require review?"*
+  - *"What evidence supports this decision?"*
+- **WHAT CRYO NAV IS DOING:** `navigationAssistantContextEngine.ts` builds structured context payload; `navigationAssistantLlm.ts` generates natural-language explanations grounded strictly in Phase 16A context. Rejects autonomous vessel control commands ("turn left", "change speed") with navigator-authority disclaimers.
+- **DATA STATUS:** `REAL` / `SIMULATED` / `HYBRID` grounded context payload.
+- **VERBAL EXPLANATION:** *"The AI Navigation Assistant explains CRYO NAV's structured decision context in natural language. It cannot calculate navigation physics independently, refuses autonomous vessel commands, and falls back to deterministic context if the LLM service is unavailable."*
+
+---
+
+### Step 18: Degraded-State, Failure & Recovery Demonstration Workflow
+- **WHERE in website:** Live Navigation View & Connectivity Bar
+- **WHAT JUDGE SEES:**
+  1. **ONLINE $\rightarrow$ OFFLINE:** Toggling connectivity state to `OFFLINE` updates `OfflineStatusPanel` and fires `OFFLINE_OPERATION` alert. Stored cached observations preserve timestamps and provenance tags (`CACHED`). Stale observations display `STALE` freshness badges and expanded uncertainty envelopes ($\pm 5.2\text{ NM}$).
+  2. **GPS / DATA BLACKOUT:** Simulating GPS telemetry failure generates `GPS_DATA_UNAVAILABLE` alert (`WARNING`). Position coordinates remain `null` or `UNAVAILABLE` without inventing synthetic vessel coordinates.
+  3. **ICEBERG FEED FAILURE:** Simulating missing USNIC observation feed renders `ICEBERG OBSERVATION TELEMETRY UNAVAILABLE` with explicit warning: *"Absence of current iceberg observations does NOT guarantee absence of hazards."*
+  4. **AI SERVICE FALLBACK:** Simulating AI network failure causes the assistant to display `"AI explanation service unavailable — deterministic CRYO NAV context remains available."` with structured evidence answers.
+  5. **RECOVERY:** Restoring connectivity to `ONLINE` restores live stream indicators. Cached data retains `STALE` status until fresh telemetry is explicitly received.
+- **WHAT CRYO NAV IS DOING:** `connectivityStateEngine.ts`, `navigationAlertEngine.ts`, `uncertaintyEngine.ts`, and `navigationOperationalStateEngine.ts` maintain deterministic safety and provenance integrity without synthetic upgrades.
+- **DATA STATUS:** `OFFLINE` / `STALE` / `UNAVAILABLE` / `HYBRID`.
+- **VERBAL EXPLANATION:** *"Under degraded network or telemetry conditions, CRYO NAV never fabricates data or assumes absence of hazards. Missing observations surface explicit UNAVAILABLE warnings, stale data expands uncertainty bounds, and recovery preserves historical timestamps."*
+
+---
+
+- **MASTER JUDGE DEMO STATEMENT:**
+  > *"CRYO NAV provides a complete, transparent, multi-stage decision-support workflow for Antarctic navigation. It transforms environmental telemetry into advection forecasts, quantifies forecast uncertainty, evaluates route resilience, prioritizes Value-of-Information satellite downlinks, continuously reassesses decision state, retrospectively validates past model performance, synthesizes executive decision status, safely handles network and data degraded states, and provides natural-language AI explanations—all while strictly preserving dataset provenance and retaining final operational authority with the navigator."*
 
 
 

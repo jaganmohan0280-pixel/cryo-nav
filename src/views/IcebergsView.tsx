@@ -76,53 +76,53 @@ export const IcebergsView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-y-auto bg-slate-50 font-sans">
+    <div className="flex-1 flex flex-col h-full overflow-y-auto bg-[#F5F7F7] font-sans">
       {/* Top Header & Overview */}
-      <div className="px-4 py-3 bg-white border-b border-slate-200 shrink-0 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="px-4 py-3 bg-white border-b border-[#DCE7E7] shrink-0 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h1 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-            <Activity className="w-5 h-5 text-slate-800" />
+          <h1 className="text-base sm:text-lg font-semibold text-[#075563] flex items-center gap-2">
+            <Activity className="w-5 h-5 text-[#2BB9BD]" />
             Iceberg Tracking & Environmental Intelligence
           </h1>
-          <p className="text-[11px] text-slate-500 font-mono">
+          <p className="text-[11px] text-[#63777B] font-sans">
             USNIC Antarctic Iceberg Database Observations & Trajectory Envelopes
           </p>
         </div>
 
         {/* Environmental Data Mode Toggle (DEMO vs REAL) */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
+          <div className="flex items-center bg-[#F5F7F7] p-1 rounded-lg border border-[#DCE7E7]">
             <button
               onClick={() => setEnvironmentalMode('DEMO')}
-              className={`px-3 py-1 text-xs font-bold font-mono rounded-md transition flex items-center gap-1.5 ${
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition flex items-center gap-1.5 ${
                 environmentalMode === 'DEMO'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-[#2BB9BD] text-white shadow-xs'
+                  : 'text-[#63777B] hover:text-[#18343A]'
               }`}
             >
-              <Radio className="w-3.5 h-3.5 text-amber-400" />
-              DEMO MODE (SYNTHETIC)
+              <Radio className="w-3.5 h-3.5 text-white" />
+              Demo Mode
             </button>
             <button
               onClick={() => setEnvironmentalMode('REAL')}
-              className={`px-3 py-1 text-xs font-bold font-mono rounded-md transition flex items-center gap-1.5 ${
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition flex items-center gap-1.5 ${
                 environmentalMode === 'REAL'
-                  ? 'bg-emerald-700 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-[#075563] text-white shadow-xs'
+                  : 'text-[#63777B] hover:text-[#18343A]'
               }`}
             >
-              <Database className="w-3.5 h-3.5 text-emerald-300" />
-              REAL DATA (USNIC ICEBERGS)
+              <Database className="w-3.5 h-3.5 text-white" />
+              Real Data
             </button>
           </div>
 
-          <div className="flex items-center gap-2 text-xs font-mono">
-            <span className="px-2.5 py-1 rounded bg-slate-100 border border-slate-200 text-slate-700 font-semibold">
-              Active Targets: <strong className="text-slate-900">{icebergs.length}</strong>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="px-2.5 py-1 rounded bg-white border border-[#DCE7E7] text-[#18343A] font-medium">
+              Active Targets: <strong className="text-[#18343A]">{icebergs.length}</strong>
             </span>
-            <span className="px-2.5 py-1 rounded bg-blue-50 border border-blue-200 text-blue-800 font-semibold flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 text-blue-600" />
-              Horizon: <strong className="text-blue-900">{currentDisplay.horizonLabel}</strong>
+            <span className="px-2.5 py-1 rounded bg-[#E8F8F6] border border-[#DCE7E7] text-[#075563] font-semibold flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-[#2BB9BD]" />
+              Horizon: <strong className="text-[#075563]">{currentDisplay.horizonLabel}</strong>
             </span>
           </div>
         </div>
@@ -213,12 +213,12 @@ export const IcebergsView: React.FC = () => {
         {/* Split Section: Left Tracked Catalog (3.5 cols) + Center/Right Interactive Map Workspace (8.5 cols) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-[500px]">
           {/* Left Column: Tracked Target Catalog */}
-          <div className="lg:col-span-4 bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex flex-col h-[500px] lg:h-full overflow-hidden">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2">
-              <span className="text-xs font-bold text-slate-900 uppercase font-mono flex items-center gap-1.5">
-                <Target className="w-4 h-4 text-slate-700" /> Tracked Target Catalog
+          <div className="lg:col-span-4 bg-[#FCFBF7] p-3 rounded-lg border border-[#D4D1C7] shadow-xs flex flex-col h-[500px] lg:h-full overflow-hidden">
+            <div className="flex items-center justify-between border-b border-[#D4D1C7] pb-2 mb-2">
+              <span className="text-xs font-bold text-[#263238] uppercase font-mono flex items-center gap-1.5">
+                <Target className="w-4 h-4 text-[#315E62]" /> Tracked Target Catalog
               </span>
-              <span className="text-[10px] font-mono text-slate-500">Sorted by Hazard</span>
+              <span className="text-[10px] font-mono text-[#596267]">Sorted by Hazard</span>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-2 pr-1">
@@ -233,26 +233,26 @@ export const IcebergsView: React.FC = () => {
                     onClick={() => setSelectedIcebergId(berg.id)}
                     className={`p-2.5 rounded border cursor-pointer transition select-none ${
                       isSelected
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-900/20'
-                        : 'bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-800'
+                        ? 'bg-[#E1ECEB] text-[#315E62] border-[#315E62] shadow-xs'
+                        : 'bg-[#F3F0E8] border-[#D4D1C7] hover:bg-[#E7E4DA] text-[#364148]'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
                         <span
                           className={`w-2.5 h-2.5 rotate-45 shrink-0 ${
-                            isHighHazard ? 'bg-red-500 ring-2 ring-red-400/40' : isSelected ? 'bg-amber-400' : 'bg-blue-600'
+                            isHighHazard ? 'bg-[#A45750] ring-2 ring-[#A45750]/30' : isSelected ? 'bg-[#315E62]' : 'bg-[#737A59]'
                           }`}
                         />
-                        <span className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                        <span className={`text-xs font-bold ${isSelected ? 'text-[#315E62]' : 'text-[#263238]'}`}>
                           {berg.name}
                         </span>
                       </div>
                       <span
                         className={`text-[10px] font-mono px-1.5 py-0.2 rounded border font-semibold ${
                           isSelected
-                            ? 'bg-slate-800 text-cyan-300 border-slate-700'
-                            : 'bg-white text-slate-700 border-slate-200'
+                            ? 'bg-[#FCFBF7] text-[#315E62] border-[#315E62]/30'
+                            : 'bg-[#FCFBF7] text-[#596267] border-[#D4D1C7]'
                         }`}
                       >
                         {berg.id}
@@ -261,7 +261,7 @@ export const IcebergsView: React.FC = () => {
 
                     <div
                       className={`text-[11px] font-mono flex items-center justify-between mt-1 ${
-                        isSelected ? 'text-slate-300' : 'text-slate-600'
+                        isSelected ? 'text-[#364148]' : 'text-[#596267]'
                       }`}
                     >
                       <span>{berg.sizeCategory}</span>
@@ -270,20 +270,20 @@ export const IcebergsView: React.FC = () => {
 
                     <div
                       className={`flex items-center justify-between text-[11px] font-mono pt-1.5 mt-1.5 border-t ${
-                        isSelected ? 'border-slate-800' : 'border-slate-200'
+                        isSelected ? 'border-[#315E62]/20' : 'border-[#D4D1C7]'
                       }`}
                     >
-                      <span className={`font-bold ${isSelected ? 'text-emerald-300' : 'text-blue-700'}`}>
+                      <span className={`font-bold ${isSelected ? 'text-[#315E62]' : 'text-[#315E62]'}`}>
                         {berg.driftSpeedKnots} kt @ {berg.driftHeadingDeg}°
                       </span>
                       {cpa && (
                         <span
                           className={`font-bold text-[10.5px] ${
                             cpa.encounterRisk === 'Critical'
-                              ? isSelected ? 'text-red-300' : 'text-red-700'
+                              ? 'text-[#A45750]'
                               : cpa.encounterRisk === 'High'
-                              ? isSelected ? 'text-amber-300' : 'text-amber-700'
-                              : isSelected ? 'text-emerald-300' : 'text-emerald-700'
+                              ? 'text-[#9A7945]'
+                              : 'text-[#52715B]'
                           }`}
                         >
                           CPA: {cpa.distanceNm} nm ({cpa.encounterRisk})

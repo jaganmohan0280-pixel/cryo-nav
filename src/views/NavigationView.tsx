@@ -15,9 +15,12 @@ import {
   AlertCircle,
   HelpCircle,
   ArrowRight,
+  X,
+  Activity,
 } from 'lucide-react';
 
 import { VoyageStatePanel } from '../components/navigation/VoyageStatePanel';
+import { buildVoyageState } from '../services/voyageStateEngine';
 import { HazardEncounterPanel } from '../components/navigation/HazardEncounterPanel';
 import { evaluateAllRouteHazards } from '../services/hazardEncounterEngine';
 import { OfflineStatusPanel, OfflineStatusPanelProps } from '../components/navigation/OfflineStatusPanel';
@@ -64,6 +67,11 @@ import {
   ValidationDataMode as ModelValidationDataMode,
 } from '../services/modelValidationEngine';
 import { ModelValidationPanel } from '../components/navigation/ModelValidationPanel';
+import {
+  buildNavigationDecisionState,
+  NavigationDecisionState,
+} from '../services/navigationDecisionStateEngine';
+import { NavigationDecisionStatePanel } from '../components/navigation/NavigationDecisionStatePanel';
 
 export const NavigationView: React.FC = () => {
   const {
@@ -87,10 +95,16 @@ export const NavigationView: React.FC = () => {
     dataAcquisitionRecommendations,
     satelliteProducts,
     batchSensitivitySummary,
+    navigationOperationalState,
   } = useApp();
 
   const [showFactorsModal, setShowFactorsModal] = useState(false);
   const [selectedHazardId, setSelectedHazardId] = useState<string | null>(null);
+  const [showAnalysisDrawer, setShowAnalysisDrawer] = useState(false);
+  const [showTelemetryDrawer, setShowTelemetryDrawer] = useState(false);
+  const [activeAnalysisTab, setActiveAnalysisTab] = useState<
+    'decision' | 'hazards' | 'uncertainty' | 'resilience' | 'acquisition' | 'reassessment' | 'alerts' | 'validation' | 'offline'
+  >('decision');
 
   const [connectionState, setConnectionState] = useState<ConnectionState>(() =>
     connectivityStateEngine.getCurrentConnectionState()
@@ -516,6 +530,58 @@ export const NavigationView: React.FC = () => {
     };
   }, [icebergs, seaIceCells]);
 
+  // Phase 17B — System-Level Navigation Decision State Engine Integration
+  const voyageStateForDecisionEngine = useMemo(() => {
+    return buildVoyageState({
+      selectedVessel,
+      mission,
+      activeRoute,
+      gpsTracking,
+      connectivityState: connectionState,
+      unifiedEnvironment,
+      decisionConfidence,
+      environmentalMode: 'DEMO',
+    });
+  }, [
+    selectedVessel,
+    mission,
+    activeRoute,
+    gpsTracking,
+    connectionState,
+    unifiedEnvironment,
+    decisionConfidence,
+  ]);
+
+  const navigationDecisionState = useMemo<NavigationDecisionState>(() => {
+    return buildNavigationDecisionState({
+      voyageState: voyageStateForDecisionEngine,
+      activeRoute,
+      hazards: hazardEvaluation?.encounters,
+      seaIceExposure: hazardEvaluation?.seaIceRouteSummary,
+      uncertainty: uncertaintyEvaluations?.[0] || null,
+      confidence: decisionConfidence,
+      acquisitionPriorities: acquisitionRankingResult,
+      reassessment: reassessmentResult,
+      resilience: resilienceResult,
+      alerts: navigationAlertResult,
+      validationSummary: icebergValidationSummary || seaIceValidationSummary,
+      connectionState,
+    });
+  }, [
+    voyageStateForDecisionEngine,
+    activeRoute,
+    hazardEvaluation,
+    uncertaintyEvaluations,
+    decisionConfidence,
+    acquisitionRankingResult,
+    reassessmentResult,
+    resilienceResult,
+    navigationAlertResult,
+    icebergValidationSummary,
+    seaIceValidationSummary,
+    connectionState,
+  ]);
+
   // Persist environmental state to local storage when online / update snapshot
 
   useEffect(() => {
@@ -646,361 +712,285 @@ export const NavigationView: React.FC = () => {
     .sort((a, b) => a.realTimeDistanceNm - b.realTimeDistanceNm)[0];
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50 space-y-2 p-2 sm:p-3 overflow-y-auto">
-      {/* Phase 9C — Offline Connectivity & Readiness Panel */}
-      <OfflineStatusPanel {...offlinePanelProps} />
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#F3F0E8] relative">
+      {/* Top Contextual Bar over Map */}
+      <div className="bg-[#FCFBF7] border-b border-[#D4D1C7] px-4 py-2 flex items-center justify-between z-10 shrink-0 shadow-xs h-12">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs text-[#263238]">
+            <span className="font-medium text-[#596267]">Voyage:</span>
+            <span className="font-semibold">{mission?.startLocation?.name?.split('(')[0] || 'Rothera Station'}</span>
+            <ArrowRight className="w-3.5 h-3.5 text-[#858C90]" />
+            <span className="font-semibold">{mission?.destination?.name?.split('(')[0] || 'McMurdo Station'}</span>
+          </div>
 
-      {/* Phase 8A — Voyage State Monitoring Panel */}
-      <VoyageStatePanel />
+          <button
+            onClick={() => {
+              replanRoutes();
+            }}
+            className="px-3 py-1 bg-[#315E62] hover:bg-[#264B4F] text-white text-xs font-medium rounded-[6px] transition flex items-center gap-1.5"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Recalculate Route
+          </button>
 
-      {/* Phase 8B — Hazard / Encounter Intelligence Panel */}
-      <HazardEncounterPanel
-        evaluationResult={hazardEvaluation}
-        selectedHazardId={selectedHazardId}
-        onSelectHazard={(id) => setSelectedHazardId(id)}
-      />
+          {decisionConfidence?.isRecommendationBlocked && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-[#F3E5E3] border border-[#A45750]/30 text-[#A45750] text-xs rounded-[6px]">
+              <AlertTriangle className="w-3.5 h-3.5 text-[#A45750] shrink-0" />
+              <span className="font-medium">Route Blocked: Insufficient confidence</span>
+            </div>
+          )}
+        </div>
 
-      {/* Phase 10B/10C — Uncertainty Zone Visualization & Explanation Panel */}
-      <UncertaintyZonePanel uncertaintyData={activeUncertaintyPanelData} showLegendInline={true} />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowAnalysisDrawer(!showAnalysisDrawer)}
+            className={`px-3 py-1 border text-xs font-medium rounded-[6px] transition flex items-center gap-1.5 ${
+              showAnalysisDrawer
+                ? 'bg-[#315E62] text-white border-[#315E62]'
+                : 'bg-[#FCFBF7] text-[#263238] border-[#D4D1C7] hover:bg-[#E1ECEB]'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5" />
+            Decision Support & Analysis
+            {decisionConfidence?.isRecommendationBlocked && (
+              <span className="w-2 h-2 rounded-full bg-[#A45750]"></span>
+            )}
+          </button>
 
-      {/* Phase 11C — Decision-Impact Data Acquisition Integration Panel */}
-      <DecisionImpactAcquisitionPanel
-        rankingResult={acquisitionRankingResult}
-        currentRouteName={activeRoute?.name || 'Active Route Corridor'}
-        decisionSensitivity={batchSensitivitySummary?.overallStability || 'ROBUST'}
-        currentUncertainty={activeUncertaintyPanelData?.uncertaintyEnvelopeLabel || 'Regional Uncertainty Zone'}
-        connectionState={connectionState}
-        availableBandwidthMb={connectionState === 'LIMITED' ? 50 : 150}
-      />
+          <button
+            onClick={() => setShowTelemetryDrawer(!showTelemetryDrawer)}
+            className={`px-3 py-1 border text-xs font-medium rounded-[6px] transition flex items-center gap-1.5 ${
+              showTelemetryDrawer
+                ? 'bg-[#315E62] text-white border-[#315E62]'
+                : 'bg-[#FCFBF7] text-[#263238] border-[#D4D1C7] hover:bg-[#E1ECEB]'
+            }`}
+          >
+            <Navigation className="w-3.5 h-3.5" />
+            Telemetry & Conning
+          </button>
+        </div>
+      </div>
 
-      {/* Phase 12C — Decision Reassessment Integration Panel */}
-      <DecisionReassessmentPanel result={reassessmentResult} />
-
-      {/* Phase 13B — Route Resilience & Counterfactual Analysis Panel */}
-      <RouteResiliencePanel evaluationResult={resilienceResult} />
-
-      {/* Phase 14B — GPS Tracking & Navigation Alert Panel */}
-      <NavigationAlertPanel
-        evaluationResult={navigationAlertResult}
-        connectionState={connectionState}
-        gpsAvailable={gpsTracking.isSimulating || (gpsTracking.currentLat !== 0 && gpsTracking.currentLon !== 0)}
-      />
-
-      {/* Phase 15B — Continuous Model Validation Panel */}
-      <ModelValidationPanel
-        icebergValidationSummary={icebergValidationSummary}
-        seaIceValidationSummary={seaIceValidationSummary}
-      />
-
-      {/* Main Split: Center Interactive Map + Right Conning Telemetry Panel */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-[500px] border border-slate-200 rounded-lg bg-white shadow-xs">
-        {/* Real Interactive Antarctic Map */}
-        <div className="flex-1 flex flex-col h-[50vh] lg:h-full min-h-[360px] relative overflow-hidden">
+      {/* Main Workspace (Map + Drawers) */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Map Workspace */}
+        <div className="flex-1 flex flex-col h-full relative overflow-hidden">
           <AntarcticMap uncertaintyEvaluations={uncertaintyEvaluations} />
           <TimelineSlider />
         </div>
 
-        {/* Right Conning & Telemetry Sidebar */}
-        <div className="w-full lg:w-96 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 flex flex-col h-[50vh] lg:h-full shrink-0 overflow-y-auto p-4 space-y-4 font-mono">
-          {/* Instruments Grid */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-slate-50 p-2.5 rounded border border-slate-200 shadow-xs">
-              <div className="text-[10px] text-slate-500 font-semibold">GPS COORDINATES</div>
-              <div className="text-sm font-bold text-slate-900 mt-0.5">
-                {Math.abs(gpsTracking.currentLat).toFixed(3)}°S
-              </div>
-              <div className="text-xs text-slate-600">
-                {Math.abs(gpsTracking.currentLon).toFixed(3)}°W
-              </div>
-            </div>
-
-            <div className="bg-slate-50 p-2.5 rounded border border-slate-200 shadow-xs">
-              <div className="text-[10px] text-slate-500 font-semibold">SPEED OVER GROUND</div>
-              <div className="text-base font-bold text-emerald-700 mt-0.5">
-                {gpsTracking.speedKnots} <span className="text-xs text-slate-500 font-normal">kts</span>
-              </div>
-              <div className="text-[10px] text-slate-500">Status: {gpsTracking.isSimulating ? 'Underway' : 'Moored / Idle'}</div>
-            </div>
-
-            <div className="bg-slate-50 p-2.5 rounded border border-slate-200 shadow-xs">
-              <div className="text-[10px] text-slate-500 font-semibold">TRUE HEADING</div>
-              <div className="text-base font-bold text-blue-700 mt-0.5">
-                {gpsTracking.headingDeg}°
-              </div>
-              <div className="text-[10px] text-slate-500">Gyro Track Lock</div>
-            </div>
-
-            <div className="bg-slate-50 p-2.5 rounded border border-slate-200 shadow-xs">
-              <div className="text-[10px] text-slate-500 font-semibold">CROSS-TRACK XTE</div>
-              <div className="text-base font-bold text-slate-900 mt-0.5">
-                {gpsTracking.crossTrackErrorNm} <span className="text-xs text-slate-500 font-normal">nm</span>
-              </div>
-              <div className="text-[10px] text-emerald-700 font-semibold">Corridor ±0.5 nm</div>
-            </div>
-          </div>
-
-          {/* DECISION CONFIDENCE PANEL (Phase 4) */}
-          <div
-            className={`p-3.5 rounded border space-y-3 shadow-xs font-sans transition ${
-              decisionConfidence.overallLevel === 'HIGH'
-                ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950'
-                : decisionConfidence.overallLevel === 'MEDIUM'
-                ? 'bg-sky-50/90 border-sky-300 text-sky-950'
-                : decisionConfidence.overallLevel === 'LOW'
-                ? 'bg-amber-50/90 border-amber-300 text-amber-950'
-                : 'bg-red-50/90 border-red-300 text-red-950'
-            }`}
-          >
-            <div className="flex items-start justify-between border-b border-slate-200/80 pb-2">
-              <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block">
-                  DECISION CONFIDENCE
-                </span>
-                <div className="flex items-center gap-2 mt-1">
-                  <span
-                    className={`text-lg font-black uppercase ${
-                      decisionConfidence.overallLevel === 'HIGH'
-                        ? 'text-emerald-700'
-                        : decisionConfidence.overallLevel === 'MEDIUM'
-                        ? 'text-sky-700'
-                        : decisionConfidence.overallLevel === 'LOW'
-                        ? 'text-amber-700'
-                        : 'text-red-700'
-                    }`}
-                  >
-                    {decisionConfidence.overallLevel}
-                  </span>
-                  <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-800 shadow-2xs">
-                    Score: {decisionConfidence.confidenceScore}/100
-                  </span>
-                </div>
-              </div>
-              <span
-                className={`text-[9px] px-2 py-1 rounded font-bold uppercase tracking-wider ${
-                  decisionConfidence.isRecommendationBlocked
-                    ? 'bg-red-700 text-white'
-                    : decisionConfidence.overallLevel === 'MEDIUM'
-                    ? 'bg-sky-700 text-white'
-                    : 'bg-emerald-700 text-white'
-                }`}
-              >
-                {decisionConfidence.isRecommendationBlocked ? 'RECOMMENDATION BLOCKED' : 'RECOMMENDATION ALLOWED'}
-              </span>
-            </div>
-
-            {/* CRITICAL Banner */}
-            {decisionConfidence.isRecommendationBlocked && (
-              <div className="p-2.5 rounded bg-red-100 border border-red-300 text-red-900 text-xs space-y-1">
-                <div className="font-bold flex items-center gap-1.5 text-red-950">
-                  <AlertTriangle className="w-4 h-4 text-red-700 shrink-0" />
-                  NAVIGATION RECOMMENDATION BLOCKED
-                </div>
-                <p className="text-[11px] leading-relaxed font-mono">
-                  Required environmental information is insufficient to support a normal route recommendation. Option is displayed as an analytical scenario only.
-                </p>
-              </div>
-            )}
-
-            {/* Summary Breakdown */}
-            <div className="space-y-1.5 text-xs font-mono">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Primary Limitation:</span>
-                <span className="font-bold text-slate-900 truncate max-w-[170px] text-right">
-                  {decisionConfidence.primaryLimitingFactor}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Data Quality:</span>
-                <span className="font-semibold text-slate-800">{unifiedEnvironment.overallQuality}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Temporal Status:</span>
-                <span className="font-semibold text-slate-800">{unifiedEnvironment.alignmentStatus}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Forecast Horizon:</span>
-                <span className="font-semibold text-slate-800">+{forecastHorizonHours} h</span>
-              </div>
-            </div>
-
-            {/* Verification Action Recommendation */}
-            {decisionConfidence.recommendedVerificationActions.length > 0 && (
-              <div className="pt-2 border-t border-slate-200/80">
-                <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-                  Recommended Verification:
-                </span>
-                <p className="text-[11px] font-sans text-slate-800 bg-white/70 p-1.5 rounded border border-slate-200/60 leading-tight">
-                  {decisionConfidence.recommendedVerificationActions[0]}
-                </p>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between gap-2">
+        {/* Telemetry / Conning Drawer */}
+        {showTelemetryDrawer && (
+          <div className="w-80 bg-[#FCFBF7] border-l border-[#D4D1C7] flex flex-col h-full overflow-y-auto shrink-0 z-20 p-4 space-y-4 shadow-lg">
+            <div className="flex items-center justify-between border-b border-[#D4D1C7] pb-2">
+              <h3 className="text-sm font-semibold text-[#263238] flex items-center gap-1.5">
+                <Navigation className="w-4 h-4 text-[#596267]" />
+                Telemetry & Conning
+              </h3>
               <button
-                onClick={() => setShowFactorsModal(!showFactorsModal)}
-                className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1 border border-slate-300 px-2.5 py-1.5 rounded bg-white hover:bg-slate-50 transition shadow-2xs"
+                onClick={() => setShowTelemetryDrawer(false)}
+                className="p-1 hover:bg-[#F3F0E8] rounded text-[#596267]"
               >
-                <ShieldCheck className="w-3.5 h-3.5 text-slate-700" />
-                {showFactorsModal ? 'Hide Factors' : `Factors (${decisionConfidence.factors.length})`}
-              </button>
-              <button
-                onClick={() => setActiveView('acquisition')}
-                className="text-xs font-bold text-slate-900 bg-amber-400 hover:bg-amber-300 px-2.5 py-1.5 rounded flex items-center gap-1 transition shadow-2xs"
-              >
-                Acquisition <ArrowRight className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Inline Factors Modal / Expanded List */}
-            {showFactorsModal && (
-              <div className="mt-3 pt-3 border-t border-slate-300 space-y-2 text-xs font-sans">
-                <span className="font-bold text-slate-900 block text-[11px] uppercase tracking-wider">
-                  Confidence Factors Breakdown:
-                </span>
-                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                  {decisionConfidence.factors.map((f, i) => (
-                    <div key={i} className="p-2 rounded bg-white border border-slate-200 shadow-2xs space-y-0.5">
-                      <div className="flex justify-between items-center font-bold">
-                        <span className="text-slate-900 text-[11px]">{f.factorName}</span>
-                        <span
-                          className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
-                            f.status === 'GOOD'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : f.status === 'ACCEPTABLE'
-                              ? 'bg-sky-100 text-sky-800'
-                              : f.status === 'CRITICAL'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {f.status} ({f.contributionScore})
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-600 leading-snug font-mono">{f.explanation}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Voyage Progress */}
-          <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2 shadow-xs">
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-900 font-bold">Voyage Leg Progress</span>
-              <span className="text-blue-700 font-bold">{gpsTracking.routeProgressPct}%</span>
-            </div>
-
-            <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden p-0.5">
-              <div
-                className="h-full bg-slate-900 rounded-full transition-all duration-300"
-                style={{ width: `${gpsTracking.routeProgressPct}%` }}
-              />
-            </div>
-
-            <div className="flex justify-between text-[10px] text-slate-500 pt-0.5">
-              <span>Made Good: {gpsTracking.distanceTraveledNm} nm</span>
-              <span>Remaining: {gpsTracking.distanceRemainingNm} nm</span>
-            </div>
-          </div>
-
-          {/* Nearest Iceberg Radar Standoff */}
-          <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2 shadow-xs">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
-              <span className="text-xs font-bold text-slate-900 uppercase flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> Nearest Iceberg Hazard
-              </span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-semibold">Live Radar</span>
-            </div>
-
-            {nearestBerg ? (
-              <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Target ID:</span>
-                  <span className="text-slate-900 font-bold">{nearestBerg.name} ({nearestBerg.id})</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Live Distance:</span>
-                  <span
-                    className={`font-bold ${
-                      nearestBerg.realTimeDistanceNm < 3.0
-                        ? 'text-red-700'
-                        : nearestBerg.realTimeDistanceNm < 6.0
-                        ? 'text-amber-700'
-                        : 'text-emerald-700'
-                    }`}
-                  >
-                    {nearestBerg.realTimeDistanceNm} nm
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Drift Vector:</span>
-                  <span className="text-blue-700 font-bold">{nearestBerg.driftSpeedKnots} kt @ {nearestBerg.driftHeadingDeg}°</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Safety Standoff:</span>
-                  <span className="text-slate-700">3.5 nm standard</span>
-                </div>
-              </div>
-            ) : (
-              <p className="text-xs text-slate-500">No tracked icebergs within 30 nm range.</p>
-            )}
-          </div>
-
-          {/* Live Environmental Wind & Sea */}
-          <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2 shadow-xs">
-            <div className="text-xs font-bold text-slate-900 uppercase flex items-center gap-1.5 border-b border-slate-200 pb-1.5">
-              <Wind className="w-3.5 h-3.5 text-slate-700" /> Bridge Environmental Telemetry
-            </div>
+            {/* Telemetry Grid */}
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <span className="text-[9px] text-slate-500 font-semibold">WIND SPEED:</span>
-                <p className="font-bold text-slate-900">{weather.windSpeedKnots} kts ({weather.windDirectionDeg}°)</p>
+              <div className="bg-[#F3F0E8] p-2.5 rounded-[6px] border border-[#D4D1C7]">
+                <div className="text-[10px] text-[#596267] font-semibold">LAT / LON</div>
+                <div className="text-xs font-bold text-[#263238] mt-0.5">
+                  {Math.abs(gpsTracking.currentLat).toFixed(3)}°S
+                </div>
+                <div className="text-[11px] text-[#596267]">
+                  {Math.abs(gpsTracking.currentLon).toFixed(3)}°W
+                </div>
               </div>
-              <div>
-                <span className="text-[9px] text-slate-500 font-semibold">SIGNIFICANT WAVE:</span>
-                <p className="font-bold text-slate-900">{weather.waveHeightMeters} m</p>
+
+              <div className="bg-[#F3F0E8] p-2.5 rounded-[6px] border border-[#D4D1C7]">
+                <div className="text-[10px] text-[#596267] font-semibold">SPEED</div>
+                <div className="text-xs font-bold text-[#263238] mt-0.5">
+                  {gpsTracking.speedKnots} kts
+                </div>
+                <div className="text-[10px] text-[#596267]">{gpsTracking.isSimulating ? 'Underway' : 'Idle'}</div>
               </div>
-              <div>
-                <span className="text-[9px] text-slate-500 font-semibold">AIR TEMP:</span>
-                <p className="font-bold text-slate-900">{weather.airTempC}°C</p>
+
+              <div className="bg-[#F3F0E8] p-2.5 rounded-[6px] border border-[#D4D1C7]">
+                <div className="text-[10px] text-[#596267] font-semibold">HEADING</div>
+                <div className="text-xs font-bold text-[#263238] mt-0.5">
+                  {gpsTracking.headingDeg}°
+                </div>
+                <div className="text-[10px] text-[#596267]">Gyro Lock</div>
               </div>
-              <div>
-                <span className="text-[9px] text-slate-500 font-semibold">VISIBILITY:</span>
-                <p className="font-bold text-slate-900">{weather.visibilityNm} nm</p>
+
+              <div className="bg-[#F3F0E8] p-2.5 rounded-[6px] border border-[#D4D1C7]">
+                <div className="text-[10px] text-[#596267] font-semibold">XTE CORRIDOR</div>
+                <div className="text-xs font-bold text-[#263238] mt-0.5">
+                  {gpsTracking.crossTrackErrorNm} nm
+                </div>
+                <div className="text-[10px] text-[#596267]">±0.5 nm</div>
+              </div>
+            </div>
+
+            {/* GPS Simulation Controls */}
+            <div className="bg-[#F3F0E8] p-3 rounded-[6px] border border-[#D4D1C7] space-y-2">
+              <div className="text-xs font-semibold text-[#263238]">GPS Simulation</div>
+              <div className="flex items-center gap-2">
+                {!gpsTracking.isSimulating ? (
+                  <button
+                    onClick={startGpsSimulation}
+                    className="flex-1 px-3 py-1.5 bg-[#315E62] hover:bg-[#264B4F] text-white text-xs font-medium rounded-[6px] transition flex items-center justify-center gap-1"
+                  >
+                    <Play className="w-3.5 h-3.5" /> Start
+                  </button>
+                ) : (
+                  <button
+                    onClick={pauseGpsSimulation}
+                    className="flex-1 px-3 py-1.5 bg-[#9A7945] hover:bg-[#856738] text-white text-xs font-medium rounded-[6px] transition flex items-center justify-center gap-1"
+                  >
+                    <Pause className="w-3.5 h-3.5" /> Pause
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Decision Confidence Panel */}
+            <div className="p-3.5 rounded-[6px] border border-[#D4D1C7] bg-[#FCFBF7] space-y-2">
+              <div className="text-xs font-semibold text-[#263238] uppercase tracking-wider">
+                Decision Confidence
+              </div>
+              <div className="flex items-center justify-between">
+                <span className={`text-base font-bold uppercase ${
+                  decisionConfidence.overallLevel === 'HIGH'
+                    ? 'text-[#52715B]'
+                    : decisionConfidence.overallLevel === 'MEDIUM'
+                    ? 'text-[#9A7945]'
+                    : 'text-[#A45750]'
+                }`}>
+                  {decisionConfidence.overallLevel}
+                </span>
+                <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-[#F3F0E8] border border-[#D4D1C7] text-[#263238]">
+                  Score: {decisionConfidence.confidenceScore}/100
+                </span>
               </div>
             </div>
           </div>
+        )}
 
-          {/* Dynamic Replanning Trigger */}
-          <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-900 uppercase flex items-center gap-1.5">
-                <RefreshCw className="w-3.5 h-3.5 text-slate-700" /> Dynamic Replan
-              </span>
+        {/* Decision Support & Analysis Drawer */}
+        {showAnalysisDrawer && (
+          <div className="w-[540px] bg-[#FCFBF7] border-l border-[#D4D1C7] flex flex-col h-full overflow-hidden shrink-0 z-20 shadow-xl">
+            {/* Drawer Header */}
+            <div className="p-3.5 border-b border-[#D4D1C7] flex items-center justify-between bg-[#E7E4DA]">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-[#315E62]" />
+                <h3 className="text-sm font-semibold text-[#263238]">Analysis & Decision Support</h3>
+              </div>
+              <button
+                onClick={() => setShowAnalysisDrawer(false)}
+                className="p-1 hover:bg-[#D4D1C7] rounded text-[#596267]"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <p className="text-[11px] text-slate-600 leading-snug font-sans">
-              Evaluate waypoint deviations if pack ice concentration expands across current leg.
-            </p>
-            <button
-              onClick={replanRoutes}
-              className="w-full py-2 px-3 rounded text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center gap-2 transition shadow-xs"
-            >
-              <RefreshCw className="w-3.5 h-3.5" /> Re-evaluate Alternatives
-            </button>
+
+            {/* Drawer Tabs */}
+            <div className="flex items-center gap-1 p-2 border-b border-[#D4D1C7] bg-[#FCFBF7] overflow-x-auto text-xs shrink-0">
+              {[
+                { id: 'decision', label: 'Decision State' },
+                { id: 'hazards', label: 'Hazards' },
+                { id: 'uncertainty', label: 'Uncertainty' },
+                { id: 'resilience', label: 'Resilience' },
+                { id: 'acquisition', label: 'Acquisition' },
+                { id: 'reassessment', label: 'Reassessment' },
+                { id: 'alerts', label: 'Alerts' },
+                { id: 'validation', label: 'Validation' },
+                { id: 'offline', label: 'Offline' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveAnalysisTab(tab.id as any)}
+                  className={`px-2.5 py-1 rounded-[4px] font-medium whitespace-nowrap transition ${
+                    activeAnalysisTab === tab.id
+                      ? 'bg-[#315E62] text-white'
+                      : 'text-[#596267] hover:bg-[#F3F0E8] hover:text-[#263238]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Drawer Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {activeAnalysisTab === 'offline' && (
+                <OfflineStatusPanel {...offlinePanelProps} />
+              )}
+
+              {activeAnalysisTab === 'decision' && (
+                <NavigationDecisionStatePanel decisionState={navigationDecisionState} />
+              )}
+
+              {activeAnalysisTab === 'hazards' && (
+                <>
+                  <VoyageStatePanel />
+                  <HazardEncounterPanel
+                    evaluationResult={hazardEvaluation}
+                    selectedHazardId={selectedHazardId}
+                    onSelectHazard={(id) => setSelectedHazardId(id)}
+                  />
+                </>
+              )}
+
+              {activeAnalysisTab === 'uncertainty' && (
+                <UncertaintyZonePanel uncertaintyData={activeUncertaintyPanelData} showLegendInline={true} />
+              )}
+
+              {activeAnalysisTab === 'resilience' && (
+                <RouteResiliencePanel evaluationResult={resilienceResult} />
+              )}
+
+              {activeAnalysisTab === 'acquisition' && (
+                <DecisionImpactAcquisitionPanel
+                  rankingResult={acquisitionRankingResult}
+                  currentRouteName={activeRoute?.name || 'Active Route Corridor'}
+                  decisionSensitivity={batchSensitivitySummary?.overallStability || 'ROBUST'}
+                  currentUncertainty={activeUncertaintyPanelData?.uncertaintyEnvelopeLabel || 'Regional Uncertainty Zone'}
+                  connectionState={connectionState}
+                  availableBandwidthMb={connectionState === 'LIMITED' ? 50 : 150}
+                />
+              )}
+
+              {activeAnalysisTab === 'reassessment' && (
+                <DecisionReassessmentPanel result={reassessmentResult} />
+              )}
+
+              {activeAnalysisTab === 'alerts' && (
+                <NavigationAlertPanel
+                  evaluationResult={navigationAlertResult}
+                  connectionState={connectionState}
+                  gpsAvailable={gpsTracking.isSimulating || (gpsTracking.currentLat !== 0 && gpsTracking.currentLon !== 0)}
+                />
+              )}
+
+              {activeAnalysisTab === 'validation' && (
+                <ModelValidationPanel
+                  icebergValidationSummary={icebergValidationSummary}
+                  seaIceValidationSummary={seaIceValidationSummary}
+                />
+              )}
+            </div>
           </div>
-
-          {/* WHAT-IF ANALYSIS PANEL (Phase 5) */}
-          <WhatIfAnalysisSection />
-
-          {/* DATA PRIORITY CALLOUT PANEL (Phase 6) */}
-          <DataPrioritySection />
-        </div>
+        )}
       </div>
     </div>
   );
 };
+
+
+
+
+
 
 const DataPrioritySection: React.FC = () => {
   const { dataAcquisitionRecommendations, setActiveView } = useApp();
@@ -1009,26 +999,26 @@ const DataPrioritySection: React.FC = () => {
   const topRec = dataAcquisitionRecommendations[0];
 
   return (
-    <div className="bg-slate-900 text-white p-3.5 rounded-lg border border-slate-800 font-mono text-xs space-y-2.5 shadow-md">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+    <div className="bg-white text-[#252B30] p-3.5 rounded-lg border border-[#DCDAD4] font-mono text-xs space-y-2.5 shadow-xs">
+      <div className="flex items-center justify-between border-b border-[#E8E6E1] pb-2">
         <div className="flex items-center gap-2">
-          <RefreshCw className="w-4 h-4 text-blue-400" />
-          <span className="font-bold uppercase tracking-wider text-slate-100">DATA ACQUISITION PRIORITY</span>
+          <RefreshCw className="w-4 h-4 text-[#3D5665]" />
+          <span className="font-bold uppercase tracking-wider text-[#252B30]">DATA ACQUISITION PRIORITY</span>
         </div>
-        <span className="text-[9px] px-2 py-0.5 rounded font-bold bg-blue-950 text-blue-300 border border-blue-800">
+        <span className="text-[9px] px-2 py-0.5 rounded font-bold bg-[#E7EDF0] text-[#3D5665] border border-[#3D5665]/30">
           Phase 6 Priority
         </span>
       </div>
 
       <div className="space-y-1">
-        <span className="text-[10px] text-slate-400 block font-bold uppercase">Top Decision-Impact Observation:</span>
+        <span className="text-[10px] text-[#626A70] block font-bold uppercase">Top Decision-Impact Observation:</span>
         <div className="flex items-center justify-between">
-          <span className="font-bold text-white text-xs">{topRec.productName}</span>
+          <span className="font-bold text-[#252B30] text-xs">{topRec.productName}</span>
           <span
             className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${
               topRec.priority === 'CRITICAL'
-                ? 'bg-purple-950 text-purple-300 border-purple-800'
-                : 'bg-blue-950 text-blue-300 border-blue-800'
+                ? 'bg-[#F5EAEA] text-[#A65B55] border-[#A65B55]/30'
+                : 'bg-[#E7EDF0] text-[#3D5665] border-[#3D5665]/30'
             }`}
           >
             {topRec.priority} ({topRec.score}/100)
@@ -1036,13 +1026,13 @@ const DataPrioritySection: React.FC = () => {
         </div>
       </div>
 
-      <p className="text-[10px] text-slate-300 font-sans leading-tight">
+      <p className="text-[10px] text-[#626A70] font-sans leading-tight">
         {topRec.expectedBenefit}
       </p>
 
       <button
         onClick={() => setActiveView('acquisition')}
-        className="w-full py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-xs"
+        className="w-full py-1.5 rounded bg-[#3D5665] hover:bg-[#304652] text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-xs"
       >
         <span>INSPECT DATA PRIORITIES</span>
         <ArrowRight className="w-3.5 h-3.5" />
@@ -1067,36 +1057,36 @@ const WhatIfAnalysisSection: React.FC = () => {
   const selectedScenario = counterfactualScenarios.find((s) => s.id === selectedScenarioId) || counterfactualScenarios[0];
 
   return (
-    <div className="bg-slate-900 text-white p-3.5 rounded border border-slate-800 space-y-3 font-sans shadow-md">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+    <div className="bg-white text-[#252B30] p-3.5 rounded border border-[#DCDAD4] space-y-3 font-sans shadow-xs">
+      <div className="flex items-center justify-between border-b border-[#E8E6E1] pb-2">
         <div className="flex items-center gap-2">
-          <HelpCircle className="w-4 h-4 text-cyan-400" />
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-100">WHAT-IF ANALYSIS</h3>
+          <HelpCircle className="w-4 h-4 text-[#3D5665]" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[#252B30]">WHAT-IF ANALYSIS</h3>
         </div>
-        <span className="text-[9px] px-2 py-0.5 rounded font-mono font-bold bg-cyan-950 text-cyan-400 border border-cyan-800">
+        <span className="text-[9px] px-2 py-0.5 rounded font-mono font-bold bg-[#E7EDF0] text-[#3D5665] border border-[#3D5665]/30">
           Phase 5 Engine
         </span>
       </div>
 
-      <p className="text-[11px] text-slate-300 leading-tight">
+      <p className="text-[11px] text-[#626A70] leading-tight">
         Tests whether route recommendations remain stable when environmental assumptions are perturbed.
       </p>
 
       {/* Current Recommendation & Baseline Info */}
-      <div className="bg-slate-950/80 p-2.5 rounded border border-slate-800 flex items-center justify-between text-xs font-mono">
+      <div className="bg-[#F5F3EE] p-2.5 rounded border border-[#E8E6E1] flex items-center justify-between text-xs font-mono">
         <div>
-          <span className="text-[10px] text-slate-400 block uppercase">Current Baseline Plan</span>
-          <span className="font-bold text-cyan-400">{recommendedRoute?.type || 'BALANCED'}</span>
+          <span className="text-[10px] text-[#626A70] block uppercase">Current Baseline Plan</span>
+          <span className="font-bold text-[#3D5665]">{recommendedRoute?.type || 'BALANCED'}</span>
         </div>
         <div className="text-right">
-          <span className="text-[10px] text-slate-400 block uppercase">Decision Stability</span>
+          <span className="text-[10px] text-[#626A70] block uppercase">Decision Stability</span>
           <span
             className={`font-bold px-1.5 py-0.5 rounded text-[10px] uppercase ${
               activeCounterfactualResult?.stability === 'HIGHLY_SENSITIVE'
-                ? 'bg-red-950 text-red-400 border border-red-800'
+                ? 'bg-[#F5EAEA] text-[#A65B55] border border-[#A65B55]/30'
                 : activeCounterfactualResult?.stability === 'SENSITIVE'
-                ? 'bg-amber-950 text-amber-400 border border-amber-800'
-                : 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                ? 'bg-[#F5F0E5] text-[#9A7945] border border-[#9A7945]/30'
+                : 'bg-[#EDF2ED] text-[#58725D] border border-[#58725D]/30'
             }`}
           >
             {activeCounterfactualResult ? activeCounterfactualResult.stability : 'ROBUST (Baseline)'}
@@ -1106,11 +1096,11 @@ const WhatIfAnalysisSection: React.FC = () => {
 
       {/* Scenario Selector & Controls */}
       <div className="space-y-2">
-        <label className="text-[10px] font-bold text-slate-400 uppercase block">Select Scenario Parameter:</label>
+        <label className="text-[10px] font-bold text-[#626A70] uppercase block">Select Scenario Parameter:</label>
         <select
           value={selectedScenarioId}
           onChange={(e) => setSelectedScenarioId(e.target.value)}
-          className="w-full bg-slate-950 text-slate-200 border border-slate-700 rounded px-2.5 py-1.5 text-xs font-mono focus:outline-hidden focus:border-cyan-500"
+          className="w-full bg-white text-[#252B30] border border-[#DCDAD4] rounded px-2.5 py-1.5 text-xs font-mono focus:outline-hidden focus:border-[#3D5665]"
         >
           {counterfactualScenarios.map((sc) => (
             <option key={sc.id} value={sc.id}>
@@ -1122,14 +1112,14 @@ const WhatIfAnalysisSection: React.FC = () => {
         <div className="flex gap-2 pt-1">
           <button
             onClick={() => runSingleCounterfactual(selectedScenario)}
-            className="flex-1 py-1.5 px-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-xs font-bold uppercase tracking-wider transition flex items-center justify-center gap-1 shadow-xs"
+            className="flex-1 py-1.5 px-2 bg-[#3D5665] hover:bg-[#304652] text-white rounded text-xs font-bold uppercase tracking-wider transition flex items-center justify-center gap-1 shadow-xs"
           >
             <Play className="w-3 h-3 fill-white" /> Run Scenario
           </button>
 
           <button
             onClick={runBatchSensitivity}
-            className="flex-1 py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded text-xs font-bold uppercase tracking-wider transition flex items-center justify-center gap-1 shadow-xs"
+            className="flex-1 py-1.5 px-2 bg-white hover:bg-[#F5F3EE] text-[#3D5665] border border-[#DCDAD4] rounded text-xs font-bold uppercase tracking-wider transition flex items-center justify-center gap-1 shadow-xs"
           >
             <RefreshCw className="w-3 h-3" /> Batch Analysis
           </button>
@@ -1138,43 +1128,43 @@ const WhatIfAnalysisSection: React.FC = () => {
 
       {/* SINGLE COUNTERFACTUAL RESULT DISPLAY */}
       {activeCounterfactualResult && (
-        <div className="bg-slate-950 p-3 rounded border border-cyan-900/60 space-y-2.5 text-xs font-mono">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-            <span className="font-bold text-cyan-300 text-[11px] truncate max-w-[200px]">
+        <div className="bg-[#F5F3EE] p-3 rounded border border-[#DCDAD4] space-y-2.5 text-xs font-mono">
+          <div className="flex items-center justify-between border-b border-[#E8E6E1] pb-1.5">
+            <span className="font-bold text-[#3D5665] text-[11px] truncate max-w-[200px]">
               {activeCounterfactualResult.scenario.name}
             </span>
-            <button onClick={clearCounterfactual} className="text-[10px] text-slate-400 hover:text-white underline">
+            <button onClick={clearCounterfactual} className="text-[10px] text-[#626A70] hover:text-[#252B30] underline">
               Clear
             </button>
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-[11px]">
-            <div className="bg-slate-900/80 p-2 rounded border border-slate-800">
-              <span className="text-[9px] text-slate-400 block">Baseline Route</span>
-              <span className="font-bold text-white">{activeCounterfactualResult.baselineRecommendedType}</span>
+            <div className="bg-white p-2 rounded border border-[#E8E6E1]">
+              <span className="text-[9px] text-[#626A70] block">Baseline Route</span>
+              <span className="font-bold text-[#252B30]">{activeCounterfactualResult.baselineRecommendedType}</span>
             </div>
-            <div className="bg-slate-900/80 p-2 rounded border border-slate-800">
-              <span className="text-[9px] text-slate-400 block">Counterfactual Route</span>
-              <span className="font-bold text-cyan-400">{activeCounterfactualResult.scenarioRecommendedType}</span>
+            <div className="bg-white p-2 rounded border border-[#E8E6E1]">
+              <span className="text-[9px] text-[#626A70] block">Counterfactual Route</span>
+              <span className="font-bold text-[#3D5665]">{activeCounterfactualResult.scenarioRecommendedType}</span>
             </div>
           </div>
 
-          <div className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-800">
+          <div className="flex items-center justify-between bg-white p-2 rounded border border-[#E8E6E1]">
             <div>
-              <span className="text-[10px] text-slate-400 block">Recommendation Changed</span>
+              <span className="text-[10px] text-[#626A70] block">Recommendation Changed</span>
               <span
                 className={`font-bold ${
-                  activeCounterfactualResult.recommendationChanged ? 'text-amber-400' : 'text-emerald-400'
+                  activeCounterfactualResult.recommendationChanged ? 'text-[#9A7945]' : 'text-[#58725D]'
                 }`}
               >
                 {activeCounterfactualResult.recommendationChanged ? 'YES' : 'NO'}
               </span>
             </div>
             <div className="text-right">
-              <span className="text-[10px] text-slate-400 block">Route Stability</span>
+              <span className="text-[10px] text-[#626A70] block">Route Stability</span>
               <span
                 className={`font-bold uppercase ${
-                  activeCounterfactualResult.stability === 'ROBUST' ? 'text-emerald-400' : 'text-amber-400'
+                  activeCounterfactualResult.stability === 'ROBUST' ? 'text-[#58725D]' : 'text-[#9A7945]'
                 }`}
               >
                 {activeCounterfactualResult.stability}
@@ -1184,51 +1174,51 @@ const WhatIfAnalysisSection: React.FC = () => {
 
           {/* Deltas Grid */}
           <div className="grid grid-cols-4 gap-1 text-center text-[10px]">
-            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
-              <span className="text-slate-400 block">ΔRisk</span>
-              <span className={`font-bold ${activeCounterfactualResult.riskChange > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+            <div className="bg-white p-1.5 rounded border border-[#E8E6E1]">
+              <span className="text-[#626A70] block">ΔRisk</span>
+              <span className={`font-bold ${activeCounterfactualResult.riskChange > 0 ? 'text-[#A65B55]' : 'text-[#58725D]'}`}>
                 {activeCounterfactualResult.riskChange > 0 ? '+' : ''}{activeCounterfactualResult.riskChange}%
               </span>
             </div>
-            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
-              <span className="text-slate-400 block">ΔETA</span>
-              <span className="font-bold text-slate-200">
+            <div className="bg-white p-1.5 rounded border border-[#E8E6E1]">
+              <span className="text-[#626A70] block">ΔETA</span>
+              <span className="font-bold text-[#252B30]">
                 {activeCounterfactualResult.etaChange > 0 ? '+' : ''}{activeCounterfactualResult.etaChange} h
               </span>
             </div>
-            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
-              <span className="text-slate-400 block">ΔFuel</span>
-              <span className="font-bold text-slate-200">
+            <div className="bg-white p-1.5 rounded border border-[#E8E6E1]">
+              <span className="text-[#626A70] block">ΔFuel</span>
+              <span className="font-bold text-[#252B30]">
                 {activeCounterfactualResult.fuelChange > 0 ? '+' : ''}{activeCounterfactualResult.fuelChange} t
               </span>
             </div>
-            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
-              <span className="text-slate-400 block">ΔDist</span>
-              <span className="font-bold text-slate-200">
+            <div className="bg-white p-1.5 rounded border border-[#E8E6E1]">
+              <span className="text-[#626A70] block">ΔDist</span>
+              <span className="font-bold text-[#252B30]">
                 {activeCounterfactualResult.distanceChange > 0 ? '+' : ''}{activeCounterfactualResult.distanceChange} nm
               </span>
             </div>
           </div>
 
           {/* 3-Part Structured Explanation */}
-          <div className="bg-slate-900/90 p-2.5 rounded border border-slate-800 space-y-1.5 text-[11px] font-sans">
+          <div className="bg-white p-2.5 rounded border border-[#E8E6E1] space-y-1.5 text-[11px] font-sans">
             <div>
-              <span className="font-bold text-cyan-400 block text-[10px] uppercase">What Changed?</span>
-              <p className="text-slate-300 text-[11px]">{activeCounterfactualResult.explanation.whatChanged}</p>
+              <span className="font-bold text-[#3D5665] block text-[10px] uppercase">What Changed?</span>
+              <p className="text-[#626A70] text-[11px]">{activeCounterfactualResult.explanation.whatChanged}</p>
             </div>
             <div>
-              <span className="font-bold text-cyan-400 block text-[10px] uppercase">Why Did It Matter?</span>
-              <p className="text-slate-300 text-[11px] leading-snug">{activeCounterfactualResult.explanation.whyItMatter}</p>
+              <span className="font-bold text-[#3D5665] block text-[10px] uppercase">Why Did It Matter?</span>
+              <p className="text-[#626A70] text-[11px] leading-snug">{activeCounterfactualResult.explanation.whyItMatter}</p>
             </div>
             <div>
-              <span className="font-bold text-cyan-400 block text-[10px] uppercase">Did Recommendation Change?</span>
-              <p className="text-slate-300 text-[11px]">{activeCounterfactualResult.explanation.didRecommendationChange}</p>
+              <span className="font-bold text-[#3D5665] block text-[10px] uppercase">Did Recommendation Change?</span>
+              <p className="text-[#626A70] text-[11px]">{activeCounterfactualResult.explanation.didRecommendationChange}</p>
             </div>
           </div>
 
           {/* Provenance Warning */}
-          <div className="p-2 rounded bg-amber-950/60 border border-amber-800/80 text-[10px] text-amber-300 space-y-0.5">
-            <span className="font-bold block uppercase tracking-wider text-[9px] text-amber-200">
+          <div className="p-2 rounded bg-[#F5F0E5] border border-[#9A7945]/30 text-[10px] text-[#9A7945] space-y-0.5">
+            <span className="font-bold block uppercase tracking-wider text-[9px] text-[#9A7945]">
               DATA PROVENANCE & TRANSPARENCY
             </span>
             <p className="leading-tight">{activeCounterfactualResult.provenance.scenarioModification}</p>
@@ -1238,56 +1228,56 @@ const WhatIfAnalysisSection: React.FC = () => {
 
       {/* BATCH SENSITIVITY SUMMARY DISPLAY */}
       {batchSensitivitySummary && (
-        <div className="bg-slate-950 p-3 rounded border border-cyan-900/60 space-y-2.5 text-xs font-mono">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-            <span className="font-bold text-cyan-300 text-[11px]">Batch Sensitivity Matrix</span>
+        <div className="bg-[#F5F3EE] p-3 rounded border border-[#DCDAD4] space-y-2.5 text-xs font-mono">
+          <div className="flex items-center justify-between border-b border-[#E8E6E1] pb-1.5">
+            <span className="font-bold text-[#3D5665] text-[11px]">Batch Sensitivity Matrix</span>
             <span
               className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
                 batchSensitivitySummary.overallStability === 'ROBUST'
-                  ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                  : 'bg-amber-950 text-amber-400 border border-amber-800'
+                  ? 'bg-[#EDF2ED] text-[#58725D] border border-[#58725D]/30'
+                  : 'bg-[#F5F0E5] text-[#9A7945] border border-[#9A7945]/30'
               }`}
             >
               {batchSensitivitySummary.overallStability}
             </span>
           </div>
 
-          <div className="bg-slate-900 p-2 rounded border border-slate-800 text-[11px] font-sans space-y-1">
-            <span className="font-bold text-amber-400 block text-[10px] uppercase">
+          <div className="bg-white p-2 rounded border border-[#E8E6E1] text-[11px] font-sans space-y-1">
+            <span className="font-bold text-[#9A7945] block text-[10px] uppercase">
               Dominant Sensitivity in Tested Scenarios:
             </span>
-            <span className="font-bold text-white text-xs block">
+            <span className="font-bold text-[#252B30] text-xs block">
               {batchSensitivitySummary.dominantSensitivity?.replace('_', ' ') || 'NONE'}
             </span>
-            <p className="text-slate-300 text-[10px] leading-tight font-mono">
+            <p className="text-[#626A70] text-[10px] leading-tight font-mono">
               {batchSensitivitySummary.dominantExplanation}
             </p>
           </div>
 
           {/* Matrix Table */}
           <div className="space-y-1 text-[10px]">
-            <div className="grid grid-cols-12 text-slate-400 font-bold border-b border-slate-800 pb-1 px-1">
+            <div className="grid grid-cols-12 text-[#626A70] font-bold border-b border-[#E8E6E1] pb-1 px-1">
               <span className="col-span-6">PARAMETER</span>
               <span className="col-span-3 text-center">STABILITY</span>
               <span className="col-span-3 text-right">CHANGE</span>
             </div>
             {batchSensitivitySummary.parameterResults.map((pr, idx) => (
-              <div key={idx} className="grid grid-cols-12 items-center py-1 px-1 border-b border-slate-900/50">
-                <span className="col-span-6 text-slate-200 font-semibold truncate">
+              <div key={idx} className="grid grid-cols-12 items-center py-1 px-1 border-b border-[#E8E6E1]/50">
+                <span className="col-span-6 text-[#252B30] font-semibold truncate">
                   {pr.parameter.replace('_', ' ')}
                 </span>
                 <span className="col-span-3 text-center">
                   <span
                     className={`px-1 py-0.5 rounded text-[8px] font-bold uppercase ${
                       pr.routeStability === 'ROBUST'
-                        ? 'bg-emerald-950 text-emerald-400'
-                        : 'bg-amber-950 text-amber-400'
+                        ? 'bg-[#EDF2ED] text-[#58725D]'
+                        : 'bg-[#F5F0E5] text-[#9A7945]'
                     }`}
                   >
                     {pr.routeStability}
                   </span>
                 </span>
-                <span className="col-span-3 text-right text-slate-300 font-bold">
+                <span className="col-span-3 text-right text-[#626A70] font-bold">
                   {pr.scenarios.filter((s) => s.recommendationChanged).length > 0 ? 'YES' : 'NO'}
                 </span>
               </div>

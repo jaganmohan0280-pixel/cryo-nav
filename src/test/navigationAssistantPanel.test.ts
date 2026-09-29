@@ -206,9 +206,10 @@ export function runNavigationAssistantPanelTests() {
       timestamp: refTime,
       dataMode: 'REAL',
       provenance: 'Acquisition Engine v11A',
-    },
+    } as any,
     reassessment: {
       reassessmentStatus: 'MONITOR',
+      recommendationStatus: 'MONITOR',
       triggerReasons: ['Routine corridor check'],
       explanation: 'Current route corridor remains stable.',
       changedVariables: [],
