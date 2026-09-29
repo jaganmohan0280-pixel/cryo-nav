@@ -8,20 +8,20 @@ export const DashboardView: React.FC = () => {
   const { setActiveView, decisionChangeStatus } = useApp();
 
   return (
-    <div className="flex-1 flex flex-col h-[calc(100vh-3.25rem)] overflow-hidden bg-slate-50">
+    <div className="flex-1 flex flex-col h-[calc(100vh-3.25rem)] overflow-hidden bg-[#F5F7F7] font-sans">
       {/* Decision Change Notice Banner (if triggered by observation acquisition) */}
       {decisionChangeStatus && (
         <div
           className={`px-4 py-2 text-xs flex items-center justify-between border-b select-none ${
             decisionChangeStatus.changed
-              ? 'bg-amber-50 border-amber-200 text-amber-900 font-medium'
-              : 'bg-blue-50 border-blue-200 text-blue-900 font-medium'
+              ? 'bg-[#FFF7DE] border-[#F6D77A] text-[#735A1E] font-medium'
+              : 'bg-[#E8F8F6] border-[#DCE7E7] text-[#075563] font-medium'
           }`}
         >
           <div className="flex items-center gap-2">
-            <Radio className="w-4 h-4 text-blue-700" />
-            <span className="font-bold font-mono">
-              {decisionChangeStatus.changed ? 'DECISION CHANGED' : 'DECISION UNCHANGED'}
+            <Radio className="w-4 h-4 text-[#075563]" />
+            <span className="font-semibold text-xs">
+              {decisionChangeStatus.changed ? 'Decision changed' : 'Decision unchanged'}
             </span>
             <span className="hidden md:inline text-[11px]">
               — {decisionChangeStatus.message}
@@ -29,7 +29,7 @@ export const DashboardView: React.FC = () => {
           </div>
           <button
             onClick={() => setActiveView('acquisition')}
-            className="text-[11px] underline font-bold flex items-center gap-1 hover:text-slate-900 shrink-0 ml-2"
+            className="text-[11px] underline font-medium flex items-center gap-1 hover:text-[#2BB9BD] shrink-0 ml-2"
           >
             <span>View Satellite Observation</span>
             <ArrowRight className="w-3 h-3" />

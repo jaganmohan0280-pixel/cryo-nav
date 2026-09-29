@@ -892,6 +892,7 @@ async function startServer() {
 
       const question = req.body.question || req.body.message || req.body.prompt;
       const context = req.body.context || {};
+      const customSystemInstruction = req.body.systemInstruction;
 
       if (!question) {
         return res.status(400).json({ error: "Missing 'question' or 'message' in request body." });
@@ -906,7 +907,7 @@ async function startServer() {
         },
       });
 
-      const systemInstruction = `You are the CRYO NAV AI Navigation Decision Support Assistant for Antarctic research vessels.
+      const systemInstruction = customSystemInstruction || `You are the CRYO NAV AI Navigation Decision Support Assistant for Antarctic research vessels.
 CRYO NAV is a decision support system (not an autonomous control system) for Antarctic navigation, combining satellite SAR, sea ice models, iceberg trajectory prediction, and multi-objective route optimization.
 
 CRITICAL RULES:

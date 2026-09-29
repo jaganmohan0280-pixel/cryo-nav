@@ -62,14 +62,14 @@ export const NavigationAssistantPanel: React.FC<NavigationAssistantPanelProps> =
   const getDataModeBadgeClass = (mode: ContextDataMode) => {
     switch (mode) {
       case 'REAL':
-        return 'bg-emerald-950/80 text-emerald-400 border-emerald-700/80';
+        return 'bg-[#EEF4EF] text-[#4F6F52] border-[#D5E4D7]';
       case 'SIMULATED':
-        return 'bg-blue-950/80 text-blue-400 border-blue-700/80';
+        return 'bg-[#F7F2E5] text-[#9A7B32] border-[#E8DFC9]';
       case 'HYBRID':
-        return 'bg-purple-950/80 text-purple-400 border-purple-700/80';
+        return 'bg-[#EEF2F4] text-[#526B7A] border-[#D5DEE2]';
       case 'UNAVAILABLE':
       default:
-        return 'bg-slate-800 text-slate-400 border-slate-700';
+        return 'bg-[#F7ECEC] text-[#A65353] border-[#EAD2D2]';
     }
   };
 
@@ -99,22 +99,22 @@ export const NavigationAssistantPanel: React.FC<NavigationAssistantPanelProps> =
   return (
     <div
       data-testid="navigation-assistant-panel"
-      className="bg-slate-900/95 border border-cyan-800/50 rounded-xl p-5 shadow-2xl backdrop-blur-md text-slate-100 space-y-5 font-sans"
+      className="bg-white border border-[#E3E3E0] rounded-[8px] p-5 text-[#202124] space-y-5 font-sans"
     >
       {/* 1. Assistant Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E3E3E0] pb-4">
         <div className="flex items-center space-x-3">
-          <div className="p-2.5 bg-cyan-950/80 border border-cyan-700/60 rounded-xl text-cyan-400 shadow-inner">
-            <Bot className="w-6 h-6" />
+          <div className="p-2 bg-[#EEF1F3] border border-[#E3E3E0] rounded-[6px] text-[#34495E]">
+            <Bot className="w-5 h-5" />
           </div>
           <div>
             <h3
               data-testid="assistant-header-title"
-              className="text-base font-extrabold text-white tracking-wide uppercase flex items-center gap-2"
+              className="text-sm font-semibold text-[#202124] tracking-tight flex items-center gap-2"
             >
               CRYO NAV AI ASSISTANT
             </h3>
-            <p className="text-xs text-cyan-400 font-medium">
+            <p className="text-xs text-[#6B6F72] font-normal">
               Decision Support — Navigator Authority Retained
             </p>
           </div>
@@ -122,10 +122,10 @@ export const NavigationAssistantPanel: React.FC<NavigationAssistantPanelProps> =
 
         {contextResult && (
           <div className="flex items-center space-x-2 self-start sm:self-auto">
-            <span className="text-xs font-semibold text-slate-400 font-mono">Data Mode:</span>
+            <span className="text-xs font-medium text-[#6B6F72]">Data Mode:</span>
             <span
               data-testid={`provenance-badge-${contextResult.dataMode.toLowerCase()}`}
-              className={`px-2.5 py-1 rounded text-xs font-mono font-bold border ${getDataModeBadgeClass(
+              className={`px-2.5 py-0.5 rounded-[4px] text-xs font-medium border ${getDataModeBadgeClass(
                 contextResult.dataMode
               )}`}
             >
@@ -138,11 +138,11 @@ export const NavigationAssistantPanel: React.FC<NavigationAssistantPanelProps> =
       {/* Navigator Authority Mandatory Disclaimer */}
       <div
         data-testid="navigator-authority-disclaimer"
-        className="bg-slate-950/90 border border-cyan-900/80 p-3 rounded-lg text-xs text-cyan-200 flex items-start space-x-2.5"
+        className="bg-[#F7F7F5] border border-[#E3E3E0] p-3 rounded-[6px] text-xs text-[#202124] flex items-start space-x-2.5"
       >
-        <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-        <div className="leading-snug font-medium">
-          <span className="font-bold text-cyan-300 block mb-0.5">OPERATIONAL MANDATE:</span>
+        <ShieldCheck className="w-4 h-4 text-[#34495E] shrink-0 mt-0.5" />
+        <div className="leading-snug">
+          <span className="font-semibold text-[#34495E] block mb-0.5">OPERATIONAL MANDATE:</span>
           {MANDATORY_NAVIGATOR_DISCLAIMER}
         </div>
       </div>
@@ -151,19 +151,19 @@ export const NavigationAssistantPanel: React.FC<NavigationAssistantPanelProps> =
       {!isContextAvailable ? (
         <div
           data-testid="assistant-context-unavailable"
-          className="bg-slate-950/80 border border-amber-900/60 rounded-lg p-6 text-center space-y-3"
+          className="bg-[#F7F7F5] border border-[#E3E3E0] rounded-[6px] p-6 text-center space-y-3"
         >
-          <div className="inline-flex p-3 bg-amber-950/60 border border-amber-800 rounded-full text-amber-400">
+          <div className="inline-flex p-3 bg-[#EEF1F3] border border-[#E3E3E0] rounded-full text-[#526B7A]">
             <Database className="w-6 h-6" />
           </div>
-          <h4 className="text-sm font-bold text-amber-400 tracking-wider uppercase">
+          <h4 className="text-xs font-semibold text-[#202124] tracking-tight uppercase">
             ASSISTANT CONTEXT UNAVAILABLE
           </h4>
-          <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
+          <p className="text-xs text-[#6B6F72] max-w-md mx-auto leading-relaxed">
             Environmental evidence and navigation decision state required to answer operational inquiries are currently unavailable.
           </p>
           <div className="pt-1 flex justify-center">
-            <span className="px-2.5 py-0.5 rounded text-[10px] font-mono border bg-gray-800 text-gray-400 border-gray-700">
+            <span className="px-2.5 py-0.5 rounded-[4px] text-[10px] font-medium border bg-[#F7ECEC] text-[#A65353] border-[#EAD2D2]">
               CONTEXT DATA MODE: UNAVAILABLE
             </span>
           </div>
@@ -173,40 +173,40 @@ export const NavigationAssistantPanel: React.FC<NavigationAssistantPanelProps> =
           {/* Quick Context Chips */}
           <div
             data-testid="current-context-summary"
-            className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-slate-950/80 p-3.5 rounded-lg border border-slate-800 text-xs font-mono"
+            className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-[#F7F7F5] p-3.5 rounded-[6px] border border-[#E3E3E0] text-xs"
           >
             <div data-testid="context-mission" className="space-y-0.5">
-              <span className="text-[10px] text-slate-500 uppercase block font-sans font-bold">Mission:</span>
-              <span className="text-white font-bold truncate block">
+              <span className="text-[10px] text-[#8A8D90] uppercase block font-medium">Mission:</span>
+              <span className="text-[#202124] font-semibold truncate block">
                 {contextResult.missionContext.title}
               </span>
             </div>
 
             <div data-testid="context-vessel" className="space-y-0.5">
-              <span className="text-[10px] text-slate-500 uppercase block font-sans font-bold">Vessel:</span>
-              <span className="text-slate-200 font-bold truncate block">
+              <span className="text-[10px] text-[#8A8D90] uppercase block font-medium">Vessel:</span>
+              <span className="text-[#202124] font-semibold truncate block">
                 {contextResult.vesselContext.vesselName} ({contextResult.vesselContext.iceClass.split(' ')[0]})
               </span>
             </div>
 
             <div data-testid="context-route" className="space-y-0.5">
-              <span className="text-[10px] text-slate-500 uppercase block font-sans font-bold">Active Route:</span>
-              <span className="text-cyan-400 font-bold truncate block">
+              <span className="text-[10px] text-[#8A8D90] uppercase block font-medium">Active Route:</span>
+              <span className="text-[#34495E] font-semibold truncate block">
                 {contextResult.routeContext.activeRouteName || 'None'} ({contextResult.routeContext.distanceNm ? `${contextResult.routeContext.distanceNm} nm` : 'N/A'})
               </span>
             </div>
 
             <div data-testid="context-confidence" className="space-y-0.5">
-              <span className="text-[10px] text-slate-500 uppercase block font-sans font-bold">Confidence:</span>
+              <span className="text-[10px] text-[#8A8D90] uppercase block font-medium">Confidence:</span>
               <span
-                className={`font-bold block ${
+                className={`font-semibold block ${
                   contextResult.confidenceContext.overallLevel === 'HIGH'
-                    ? 'text-emerald-400'
+                    ? 'text-[#4F6F52]'
                     : contextResult.confidenceContext.overallLevel === 'MEDIUM'
-                    ? 'text-sky-400'
+                    ? 'text-[#526B7A]'
                     : contextResult.confidenceContext.overallLevel === 'LOW'
-                    ? 'text-amber-400'
-                    : 'text-rose-400'
+                    ? 'text-[#9A7B32]'
+                    : 'text-[#A65353]'
                 }`}
               >
                 {contextResult.confidenceContext.overallLevel} ({contextResult.confidenceContext.confidenceScore ? `${contextResult.confidenceContext.confidenceScore}/100` : 'N/A'})
@@ -214,10 +214,39 @@ export const NavigationAssistantPanel: React.FC<NavigationAssistantPanelProps> =
             </div>
           </div>
 
-          {/* Phase 16C Natural Language Inquiry Form */}
-          <div className="bg-slate-950/90 p-4 rounded-xl border border-cyan-900/60 space-y-3">
-            <div className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" /> Natural Language Explanation Query (Phase 16C):
+          {/* Operational Inquiry Shortcuts */}
+          <div className="space-y-2">
+            <span className="text-[11px] font-semibold text-[#6B6F72] block">
+              Quick Operational Questions:
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: 'Explain Current Decision', query: 'Explain current navigation decision state' },
+                { label: 'Why is Route Confidence Low?', query: 'Why is route confidence low or degraded?' },
+                { label: 'Compare Route Options', query: 'Compare route options (Safest vs Balanced vs Fastest)' },
+                { label: 'Explain Current Hazards', query: 'Explain current hazards and iceberg risk' },
+                { label: 'Why is More Data Needed?', query: 'Why is additional satellite data or observation needed?' },
+                { label: 'Explain Offline Decision State', query: 'Explain offline decision state and cached data' },
+              ].map((btn, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    if (onAskQuery) onAskQuery(btn.query);
+                  }}
+                  className="px-2.5 py-1.5 rounded-[5px] bg-[#FFFFFF] hover:bg-[#F3F4F3] border border-[#D7D9DA] text-[#34495E] text-xs font-medium transition flex items-center gap-1"
+                >
+                  <Info className="w-3.5 h-3.5 text-[#526B7A]" />
+                  <span>{btn.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Natural Language Inquiry Form */}
+          <div className="bg-[#F7F7F5] p-4 rounded-[6px] border border-[#E3E3E0] space-y-3">
+            <div className="text-xs font-semibold text-[#34495E] flex items-center gap-1.5">
+              <Bot className="w-4 h-4 text-[#34495E]" /> Natural Language Explanation Query:
             </div>
 
             <form onSubmit={handleCustomSubmit} className="flex gap-2">
@@ -227,16 +256,16 @@ export const NavigationAssistantPanel: React.FC<NavigationAssistantPanelProps> =
                 placeholder="Ask question about routes, iceberg uncertainty, satellite VoI, or resilience..."
                 value={customInputQuery}
                 onChange={(e) => setCustomInputQuery(e.target.value)}
-                className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500 font-sans"
+                className="flex-1 bg-white border border-[#D9DCDD] rounded-[5px] px-3 py-1.5 text-xs text-[#202124] placeholder-[#8A8D90] focus:outline-none focus:border-[#526B7A] font-sans"
               />
               <button
                 type="submit"
                 data-testid="llm-ask-button"
                 disabled={!customInputQuery.trim() || isLoadingLlm}
-                className="px-4 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-600 disabled:opacity-40 text-white font-medium text-xs tracking-wider flex items-center gap-1.5 transition shadow-xs"
+                className="px-3.5 py-1.5 rounded-[5px] bg-[#34495E] hover:bg-[#293B4A] disabled:bg-[#E3E3E0] disabled:text-[#8A8D90] text-white font-medium text-xs flex items-center gap-1.5 transition cursor-pointer"
               >
                 {isLoadingLlm ? (
-                  <Sparkles className="w-3.5 h-3.5 animate-spin" />
+                  <Bot className="w-3.5 h-3.5 animate-spin" />
                 ) : (
                   <Send className="w-3.5 h-3.5" />
                 )}
@@ -247,9 +276,9 @@ export const NavigationAssistantPanel: React.FC<NavigationAssistantPanelProps> =
 
           {/* LLM Explanation Output or Fallback Service State Banner */}
           {isLoadingLlm && (
-            <div className="p-3.5 bg-slate-950 border border-cyan-900 rounded-lg text-xs font-mono text-cyan-300 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 animate-spin text-cyan-400" />
-              <span>Generating grounded natural-language explanation over structured Phase 16A evidence...</span>
+            <div className="p-3.5 bg-[#F7F7F5] border border-[#E3E3E0] rounded-[6px] text-xs text-[#526B7A] flex items-center gap-2">
+              <Bot className="w-4 h-4 animate-spin text-[#34495E]" />
+              <span>Generating grounded natural-language explanation over structured evidence...</span>
             </div>
           )}
 
@@ -258,34 +287,34 @@ export const NavigationAssistantPanel: React.FC<NavigationAssistantPanelProps> =
               {(llmResult.isFallback || !llmResult.success) && (
                 <div
                   data-testid="llm-service-unavailable-banner"
-                  className="bg-amber-950/70 border border-amber-800/80 p-3 rounded-lg text-xs font-mono text-amber-300 flex items-start gap-2"
+                  className="bg-[#F7F2E5] border border-[#E8DFC9] p-3 rounded-[6px] text-xs text-[#9A7B32] flex items-start gap-2"
                 >
-                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-4 h-4 text-[#9A7B32] shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold block">SERVICE NOTICE:</span>
+                    <span className="font-semibold block">SERVICE NOTICE:</span>
                     {SERVICE_UNAVAILABLE_MESSAGE}
                   </div>
                 </div>
               )}
 
-              <div className="bg-slate-950 p-4 rounded-xl border border-cyan-800/80 space-y-2">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2 text-xs font-mono">
-                  <span className="font-bold text-cyan-400 uppercase flex items-center gap-1.5">
-                    <Bot className="w-4 h-4 text-cyan-400" /> Natural Language Grounded Explanation:
+              <div className="bg-white p-4 rounded-[6px] border border-[#E3E3E0] space-y-2">
+                <div className="flex items-center justify-between border-b border-[#ECECE9] pb-2 text-xs">
+                  <span className="font-semibold text-[#34495E] flex items-center gap-1.5">
+                    <Bot className="w-4 h-4 text-[#34495E]" /> Grounded Explanation:
                   </span>
-                  <span className="text-[10px] text-slate-400">{llmResult.provenance}</span>
+                  <span className="text-[10px] text-[#8A8D90]">{llmResult.provenance}</span>
                 </div>
-                <p className="text-xs text-slate-200 font-sans font-medium leading-relaxed whitespace-pre-wrap pt-1">
+                <p className="text-xs text-[#202124] font-medium leading-relaxed whitespace-pre-wrap pt-1">
                   {llmResult.explanation}
                 </p>
               </div>
             </div>
           )}
 
-          {/* 3. Quick Question Buttons (8 Phase 16A Questions) */}
+          {/* Quick Question Buttons */}
           <div className="space-y-2">
-            <div className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <HelpCircle className="w-3.5 h-3.5 text-cyan-400" /> Operational Inquiries (Select to inspect structured evidence):
+            <div className="text-xs font-semibold text-[#4F555A] flex items-center gap-1.5">
+              <HelpCircle className="w-3.5 h-3.5 text-[#34495E]" /> Operational Inquiries (Select to inspect structured evidence):
             </div>
 
             <div
@@ -300,105 +329,105 @@ export const NavigationAssistantPanel: React.FC<NavigationAssistantPanelProps> =
                     type="button"
                     data-testid={`question-btn-${q.key}`}
                     onClick={() => handleSelectQuestion(q)}
-                    className={`p-2.5 rounded-lg text-xs font-semibold text-left transition-all duration-200 flex items-center justify-between border ${
+                    className={`p-2.5 rounded-[6px] text-xs font-medium text-left transition flex items-center justify-between border ${
                       isSelected
-                        ? 'bg-cyan-950/90 text-cyan-300 border-cyan-600 shadow-md ring-1 ring-cyan-500/50'
-                        : 'bg-slate-950/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border-slate-800'
+                        ? 'bg-[#EEF1F3] text-[#34495E] border-[#34495E]'
+                        : 'bg-white text-[#4F555A] hover:bg-[#F7F7F5] border-[#E3E3E0]'
                     }`}
                   >
                     <span className="line-clamp-1">{q.label}</span>
-                    {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0 ml-1.5" />}
+                    {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#34495E] shrink-0 ml-1.5" />}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* 4. Structured Answer Area */}
+          {/* Structured Answer Area */}
           <div
             data-testid="answer-area"
-            className="bg-slate-950 p-4 rounded-xl border border-cyan-900/60 space-y-2"
+            className="bg-white p-4 rounded-[6px] border border-[#E3E3E0] space-y-2"
           >
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Bot className="w-4 h-4 text-cyan-400" /> Structured Evidence Explanation:
+            <div className="flex items-center justify-between border-b border-[#ECECE9] pb-2">
+              <span className="text-xs font-semibold text-[#34495E] flex items-center gap-1.5">
+                <Bot className="w-4 h-4 text-[#34495E]" /> Structured Evidence Explanation:
               </span>
-              <span className="text-[10px] font-mono text-slate-500">
+              <span className="text-[10px] text-[#8A8D90]">
                 Deterministic Context Output
               </span>
             </div>
 
             <p
               data-testid="selected-answer-text"
-              className="text-xs text-slate-200 leading-relaxed font-sans font-medium whitespace-pre-wrap pt-1"
+              className="text-xs text-[#202124] leading-relaxed font-normal whitespace-pre-wrap pt-1"
             >
               {selectedAnswer}
             </p>
           </div>
 
-          {/* 5. Evidence Section (Supporting Metrics for Selected Question) */}
+          {/* Evidence Section (Supporting Metrics) */}
           <div
             data-testid="evidence-section"
-            className="bg-slate-950/70 p-3.5 rounded-lg border border-slate-800 space-y-2.5"
+            className="bg-[#F7F7F5] p-3.5 rounded-[6px] border border-[#E3E3E0] space-y-2.5"
           >
-            <div className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Activity className="w-3.5 h-3.5 text-cyan-400" /> Underlying Evidence Metrics:
+            <div className="text-xs font-semibold text-[#4F555A] flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 text-[#34495E]" /> Underlying Evidence Metrics:
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               {/* Route Risk */}
               {contextResult.routeContext.riskIndex != null && (
-                <div data-testid="evidence-route-risk" className="bg-slate-900/80 p-2.5 rounded border border-slate-800 space-y-0.5">
-                  <span className="text-[10px] text-slate-500 block uppercase">Route Risk</span>
-                  <span className="text-white font-bold">{contextResult.routeContext.riskIndex}/100</span>
+                <div data-testid="evidence-route-risk" className="bg-white p-2.5 rounded border border-[#E3E3E0] space-y-0.5">
+                  <span className="text-[10px] text-[#8A8D90] block uppercase">Route Risk</span>
+                  <span className="text-[#202124] font-semibold">{contextResult.routeContext.riskIndex}/100</span>
                 </div>
               )}
 
               {/* CPA */}
               {contextResult.hazardContext.nearestIcebergCpaNm != null && (
-                <div data-testid="evidence-cpa" className="bg-slate-900/80 p-2.5 rounded border border-slate-800 space-y-0.5">
-                  <span className="text-[10px] text-slate-500 block uppercase">Nearest CPA</span>
-                  <span className="text-amber-400 font-bold">{contextResult.hazardContext.nearestIcebergCpaNm.toFixed(1)} nm</span>
+                <div data-testid="evidence-cpa" className="bg-white p-2.5 rounded border border-[#E3E3E0] space-y-0.5">
+                  <span className="text-[10px] text-[#8A8D90] block uppercase">Nearest CPA</span>
+                  <span className="text-[#9A7B32] font-semibold">{contextResult.hazardContext.nearestIcebergCpaNm.toFixed(1)} nm</span>
                 </div>
               )}
 
               {/* Uncertainty Radius */}
               {contextResult.uncertaintyContext.uncertaintyRadiusNm != null && (
-                <div data-testid="evidence-uncertainty-radius" className="bg-slate-900/80 p-2.5 rounded border border-slate-800 space-y-0.5">
-                  <span className="text-[10px] text-slate-500 block uppercase">Uncertainty Envelope</span>
-                  <span className="text-cyan-400 font-bold">±{contextResult.uncertaintyContext.uncertaintyRadiusNm.toFixed(1)} nm</span>
+                <div data-testid="evidence-uncertainty-radius" className="bg-white p-2.5 rounded border border-[#E3E3E0] space-y-0.5">
+                  <span className="text-[10px] text-[#8A8D90] block uppercase">Uncertainty Envelope</span>
+                  <span className="text-[#526B7A] font-semibold">±{contextResult.uncertaintyContext.uncertaintyRadiusNm.toFixed(1)} nm</span>
                 </div>
               )}
 
               {/* Confidence Score */}
               {contextResult.confidenceContext.confidenceScore != null && (
-                <div data-testid="evidence-confidence-score" className="bg-slate-900/80 p-2.5 rounded border border-slate-800 space-y-0.5">
-                  <span className="text-[10px] text-slate-500 block uppercase">Confidence Score</span>
-                  <span className="text-emerald-400 font-bold">{contextResult.confidenceContext.confidenceScore}/100</span>
+                <div data-testid="evidence-confidence-score" className="bg-white p-2.5 rounded border border-[#E3E3E0] space-y-0.5">
+                  <span className="text-[10px] text-[#8A8D90] block uppercase">Confidence Score</span>
+                  <span className="text-[#4F6F52] font-semibold">{contextResult.confidenceContext.confidenceScore}/100</span>
                 </div>
               )}
 
               {/* Resilience Score */}
               {contextResult.resilienceContext.resilienceScore != null && (
-                <div data-testid="evidence-resilience-score" className="bg-slate-900/80 p-2.5 rounded border border-slate-800 space-y-0.5">
-                  <span className="text-[10px] text-slate-500 block uppercase">Resilience Index</span>
-                  <span className="text-emerald-300 font-bold">{contextResult.resilienceContext.resilienceScore}/100</span>
+                <div data-testid="evidence-resilience-score" className="bg-white p-2.5 rounded border border-[#E3E3E0] space-y-0.5">
+                  <span className="text-[10px] text-[#8A8D90] block uppercase">Resilience Index</span>
+                  <span className="text-[#4F6F52] font-semibold">{contextResult.resilienceContext.resilienceScore}/100</span>
                 </div>
               )}
 
               {/* Route Sensitivity */}
               {contextResult.resilienceContext.sensitivityClassification !== 'UNAVAILABLE' && (
-                <div data-testid="evidence-sensitivity" className="bg-slate-900/80 p-2.5 rounded border border-slate-800 space-y-0.5">
-                  <span className="text-[10px] text-slate-500 block uppercase">Route Sensitivity</span>
-                  <span className="text-amber-300 font-bold">{contextResult.resilienceContext.sensitivityClassification}</span>
+                <div data-testid="evidence-sensitivity" className="bg-white p-2.5 rounded border border-[#E3E3E0] space-y-0.5">
+                  <span className="text-[10px] text-[#8A8D90] block uppercase">Route Sensitivity</span>
+                  <span className="text-[#9A7B32] font-semibold">{contextResult.resilienceContext.sensitivityClassification}</span>
                 </div>
               )}
 
               {/* Acquisition Priority */}
               {contextResult.dataAcquisitionContext.highestPriorityProduct && (
-                <div data-testid="evidence-acquisition-priority" className="bg-slate-900/80 p-2.5 rounded border border-slate-800 space-y-0.5 col-span-2 sm:col-span-1">
-                  <span className="text-[10px] text-slate-500 block uppercase">Top Acquisition Priority</span>
-                  <span className="text-purple-300 font-bold truncate block">
+                <div data-testid="evidence-acquisition-priority" className="bg-white p-2.5 rounded border border-[#E3E3E0] space-y-0.5 col-span-2 sm:col-span-1">
+                  <span className="text-[10px] text-[#8A8D90] block uppercase">Top Acquisition Priority</span>
+                  <span className="text-[#34495E] font-semibold truncate block">
                     {contextResult.dataAcquisitionContext.highestPriorityProduct.sensor} ({contextResult.dataAcquisitionContext.highestPriorityProduct.priority})
                   </span>
                 </div>
@@ -406,17 +435,17 @@ export const NavigationAssistantPanel: React.FC<NavigationAssistantPanelProps> =
 
               {/* Reassessment Status */}
               {contextResult.reassessmentContext.recommendationStatus !== 'UNAVAILABLE' && (
-                <div data-testid="evidence-reassessment-status" className="bg-slate-900/80 p-2.5 rounded border border-slate-800 space-y-0.5 col-span-2 sm:col-span-1">
-                  <span className="text-[10px] text-slate-500 block uppercase">Reassessment Status</span>
-                  <span className="text-cyan-300 font-bold">{contextResult.reassessmentContext.recommendationStatus}</span>
+                <div data-testid="evidence-reassessment-status" className="bg-white p-2.5 rounded border border-[#E3E3E0] space-y-0.5 col-span-2 sm:col-span-1">
+                  <span className="text-[10px] text-[#8A8D90] block uppercase">Reassessment Status</span>
+                  <span className="text-[#526B7A] font-semibold">{contextResult.reassessmentContext.recommendationStatus}</span>
                 </div>
               )}
 
               {/* Critical Alert Severity */}
               {contextResult.alertContext.totalAlertsCount > 0 && (
-                <div data-testid="evidence-alerts-count" className="bg-slate-900/80 p-2.5 rounded border border-slate-800 space-y-0.5 col-span-2 sm:col-span-1">
-                  <span className="text-[10px] text-slate-500 block uppercase">Active Alerts</span>
-                  <span className="text-rose-400 font-bold">
+                <div data-testid="evidence-alerts-count" className="bg-white p-2.5 rounded border border-[#E3E3E0] space-y-0.5 col-span-2 sm:col-span-1">
+                  <span className="text-[10px] text-[#8A8D90] block uppercase">Active Alerts</span>
+                  <span className="text-[#A65353] font-semibold">
                     {contextResult.alertContext.totalAlertsCount} Total ({contextResult.alertContext.criticalAlertsCount} Critical)
                   </span>
                 </div>

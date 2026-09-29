@@ -1,27 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Compass, MapPin, Navigation, Play, RotateCcw, CheckCircle2, ArrowRight } from 'lucide-react';
-
-export interface LocationPreset {
-  name: string;
-  lat: number;
-  lon: number;
-  description?: string;
-}
-
-export const POLAR_LOCATION_PRESETS: LocationPreset[] = [
-  { name: 'Drake Passage Transit Gate', lat: -59.50, lon: -64.50, description: 'Southern Ocean Open Water Entry (-59.50°S, -64.50°W)' },
-  { name: 'Punta Arenas, Chile', lat: -53.16, lon: -70.91, description: 'Sub-Antarctic Port Gateway (-53.16°S, -70.91°W)' },
-  { name: 'Ushuaia, Argentina', lat: -54.80, lon: -68.30, description: 'Drake Passage Departure Port (-54.80°S, -68.30°W)' },
-  { name: 'King George Island (South Shetlands)', lat: -62.20, lon: -58.96, description: 'South Shetland Archipelago (-62.20°S, -58.96°W)' },
-  { name: 'Deception Island (Whalers Bay)', lat: -62.98, lon: -60.57, description: 'Volcanic Caldera Anchorage (-62.98°S, -60.57°W)' },
-  { name: 'Palmer Station (USA)', lat: -64.77, lon: -64.05, description: 'Anvers Island Base (-64.77°S, -64.05°W)' },
-  { name: 'Vernadsky Station (Ukraine)', lat: -65.25, lon: -64.25, description: 'Argentine Islands (-65.25°S, -64.25°W)' },
-  { name: 'Rothera Research Station (UK)', lat: -67.57, lon: -68.13, description: 'Marguerite Bay / Adelaide Island (-67.57°S, -68.13°W)' },
-  { name: 'San Martin Base (Argentina)', lat: -68.13, lon: -67.10, description: 'Marguerite Bay Deep South (-68.13°S, -67.10°W)' },
-  { name: 'Halley VI Station (UK)', lat: -75.58, lon: -26.35, description: 'Weddell Sea Ice Shelf (-75.58°S, -26.35°W)' },
-  { name: 'McMurdo Station (USA)', lat: -77.85, lon: 166.67, description: 'Ross Sea Hub (-77.85°S, 166.67°E)' },
-];
+import { Compass, MapPin, Navigation, CheckCircle2, ArrowRight, Search, X, AlertCircle } from 'lucide-react';
+import { AUTHORITATIVE_RESEARCH_STATIONS, ResearchStation, searchStations } from '../data/researchStations';
 
 interface Props {
   compact?: boolean;
@@ -29,83 +9,75 @@ interface Props {
 }
 
 export const RoutePlannerWidget: React.FC<Props> = ({ compact = false, onRoutesCalculated }) => {
-  const { mission, setMission, setActiveView, addAlert, selectedVessel } = useApp();
+  const { mission, setMission, addAlert, selectedVessel } = useApp();
 
-  const [selectedSourcePreset, setSelectedSourcePreset] = useState<string>(
-    POLAR_LOCATION_PRESETS.find((p) => p.name.includes(mission.startLocation.name.split('(')[0].trim()))?.name ||
-      POLAR_LOCATION_PRESETS[0].name
+  const [sourceSearch, setSourceSearch] = useState<string>('');
+  const [destSearch, setDestSearch] = useState<string>('');
+  const [showSourceDropdown, setShowSourceDropdown] = useState<boolean>(false);
+  const [showDestDropdown, setShowDestDropdown] = useState<boolean>(false);
+
+  const [selectedSourceId, setSelectedSourceId] = useState<string>(
+    AUTHORITATIVE_RESEARCH_STATIONS.find((s) => Math.abs(s.lat - mission.startLocation.lat) < 0.2 && Math.abs(s.lon - mission.startLocation.lon) < 0.2)?.id ||
+      'st-drake-entry'
   );
-  const [sourceName, setSourceName] = useState<string>(mission.startLocation.name);
-  const [sourceLat, setSourceLat] = useState<number>(mission.startLocation.lat);
-  const [sourceLon, setSourceLon] = useState<number>(mission.startLocation.lon);
 
-  const [selectedDestPreset, setSelectedDestPreset] = useState<string>(
-    POLAR_LOCATION_PRESETS.find((p) => p.name.includes(mission.destination.name.split('(')[0].trim()))?.name ||
-      POLAR_LOCATION_PRESETS[7].name
+  const [selectedDestId, setSelectedDestId] = useState<string>(
+    AUTHORITATIVE_RESEARCH_STATIONS.find((s) => Math.abs(s.lat - mission.destination.lat) < 0.2 && Math.abs(s.lon - mission.destination.lon) < 0.2)?.id ||
+      'st-rothera'
   );
-  const [destName, setDestName] = useState<string>(mission.destination.name);
-  const [destLat, setDestLat] = useState<number>(mission.destination.lat);
-  const [destLon, setDestLon] = useState<number>(mission.destination.lon);
 
-  const [isCustomSource, setIsCustomSource] = useState<boolean>(false);
-  const [isCustomDest, setIsCustomDest] = useState<boolean>(false);
+  const [isModifiedSinceCalc, setIsModifiedSinceCalc] = useState<boolean>(false);
   const [calculatedSuccess, setCalculatedSuccess] = useState<boolean>(false);
 
-  const handleSourcePresetChange = (presetName: string) => {
-    setSelectedSourcePreset(presetName);
-    if (presetName === 'CUSTOM') {
-      setIsCustomSource(true);
-    } else {
-      setIsCustomSource(false);
-      const preset = POLAR_LOCATION_PRESETS.find((p) => p.name === presetName);
-      if (preset) {
-        setSourceName(preset.name);
-        setSourceLat(preset.lat);
-        setSourceLon(preset.lon);
-      }
-    }
+  const filteredSourceStations = useMemo(() => searchStations(sourceSearch), [sourceSearch]);
+  const filteredDestStations = useMemo(() => searchStations(destSearch), [destSearch]);
+
+  const selectedSource = AUTHORITATIVE_RESEARCH_STATIONS.find((s) => s.id === selectedSourceId) || AUTHORITATIVE_RESEARCH_STATIONS[0];
+  const selectedDest = AUTHORITATIVE_RESEARCH_STATIONS.find((s) => s.id === selectedDestId) || AUTHORITATIVE_RESEARCH_STATIONS[1];
+
+  const isIdentical = selectedSource.id === selectedDest.id || (selectedSource.lat === selectedDest.lat && selectedSource.lon === selectedDest.lon);
+
+  const handleSelectSource = (st: ResearchStation) => {
+    setSelectedSourceId(st.id);
+    setSourceSearch('');
+    setShowSourceDropdown(false);
+    setIsModifiedSinceCalc(true);
   };
 
-  const handleDestPresetChange = (presetName: string) => {
-    setSelectedDestPreset(presetName);
-    if (presetName === 'CUSTOM') {
-      setIsCustomDest(true);
-    } else {
-      setIsCustomDest(false);
-      const preset = POLAR_LOCATION_PRESETS.find((p) => p.name === presetName);
-      if (preset) {
-        setDestName(preset.name);
-        setDestLat(preset.lat);
-        setDestLon(preset.lon);
-      }
-    }
+  const handleSelectDest = (st: ResearchStation) => {
+    setSelectedDestId(st.id);
+    setDestSearch('');
+    setShowDestDropdown(false);
+    setIsModifiedSinceCalc(true);
   };
 
   const handleRunRouting = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isIdentical) return;
 
     setMission({
       ...mission,
       startLocation: {
-        name: sourceName || `Custom Origin (${sourceLat.toFixed(2)}°S, ${sourceLon.toFixed(2)}°W)`,
-        lat: Number(sourceLat),
-        lon: Number(sourceLon),
+        name: `${selectedSource.name} (${selectedSource.country})`,
+        lat: selectedSource.lat,
+        lon: selectedSource.lon,
       },
       destination: {
-        name: destName || `Custom Destination (${destLat.toFixed(2)}°S, ${destLon.toFixed(2)}°W)`,
-        lat: Number(destLat),
-        lon: Number(destLon),
+        name: `${selectedDest.name} (${selectedDest.country})`,
+        lat: selectedDest.lat,
+        lon: selectedDest.lon,
       },
     });
 
     addAlert({
       severity: 'INFO',
       type: 'ROUTE_DEVIATION',
-      title: 'Routes Calculated for Selected Corridor',
-      message: `Origin: ${sourceName} (${sourceLat}°S, ${sourceLon}°W) → Destination: ${destName} (${destLat}°S, ${destLon}°W). 3 Route Corridors Generated!`,
+      title: 'Navigation Route Calculated',
+      message: `Origin: ${selectedSource.name} → Destination: ${selectedDest.name}. Multi-objective route alternatives computed.`,
     });
 
     setCalculatedSuccess(true);
+    setIsModifiedSinceCalc(false);
     setTimeout(() => setCalculatedSuccess(false), 3000);
 
     if (onRoutesCalculated) {
@@ -114,167 +86,210 @@ export const RoutePlannerWidget: React.FC<Props> = ({ compact = false, onRoutesC
   };
 
   return (
-    <div className={`bg-white rounded-lg border border-slate-200 shadow-xs font-mono ${compact ? 'p-3 text-xs' : 'p-4 text-xs'}`}>
-      <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-3">
-        <div className="flex items-center gap-2">
-          <Navigation className="w-4 h-4 text-blue-600" />
-          <span className="font-semibold text-slate-900 uppercase tracking-wider">
-            Origin & Destination Route Optimizer
+    <div className={`bg-white rounded-[12px] border border-[#DCE7E7] font-sans shadow-subtle ${compact ? 'p-3.5 text-xs' : 'p-5 text-xs'}`}>
+      <div className="flex items-center justify-between border-b border-[#DCE7E7] pb-3 mb-4">
+        <div className="flex items-center gap-2.5">
+          <Navigation className="w-4 h-4 text-[#2BB9BD]" />
+          <span className="font-bold text-[#075563] tracking-tight text-xs sm:text-sm">
+            Antarctic Route & Station Optimizer
           </span>
         </div>
-        <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-medium">
-          Interactive Polar Router
+        <span className="text-[11px] px-2.5 py-0.5 rounded-[6px] bg-[#E8F8F6] text-[#075563] border border-[#DCE7E7] font-semibold">
+          Authoritative Station Dataset
         </span>
       </div>
 
-      <form onSubmit={handleRunRouting} className="space-y-3">
-        <div className={`grid grid-cols-1 ${compact ? 'md:grid-cols-2' : 'md:grid-cols-2'} gap-3`}>
-          {/* SOURCE (ORIGIN) INPUT */}
-          <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2">
+      <form onSubmit={handleRunRouting} className="space-y-4">
+        <div className={`grid grid-cols-1 ${compact ? 'md:grid-cols-2' : 'md:grid-cols-2'} gap-4`}>
+          {/* SOURCE (ORIGIN) SELECTOR */}
+          <div className="bg-[#E8F8F6]/40 p-3.5 rounded-[10px] border border-[#DCE7E7] space-y-2 relative">
             <div className="flex items-center justify-between">
-              <label className="text-[11px] font-semibold text-slate-800 flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-cyan-600" /> SOURCE (ORIGIN)
+              <label className="text-xs font-semibold text-[#075563] flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-[#2BB9BD]" /> Origin (Departure)
               </label>
-              <span className="text-[10px] text-slate-500">Departure Location</span>
+              <span className="text-xs text-[#63777B] font-medium">{selectedSource.country}</span>
             </div>
 
-            <select
-              value={selectedSourcePreset}
-              onChange={(e) => handleSourcePresetChange(e.target.value)}
-              className="w-full bg-white border border-slate-300 rounded p-1.5 text-xs text-slate-900 focus:outline-hidden focus:border-blue-500 font-sans"
-            >
-              {POLAR_LOCATION_PRESETS.map((p) => (
-                <option key={p.name} value={p.name}>
-                  {p.name}
-                </option>
-              ))}
-              <option value="CUSTOM">Custom Latitude & Longitude...</option>
-            </select>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowSourceDropdown(!showSourceDropdown)}
+                className="w-full bg-white border border-[#DCE7E7] rounded-[8px] p-2.5 text-left text-xs text-[#18343A] focus:outline-none focus:border-[#2BB9BD] flex items-center justify-between shadow-2xs"
+              >
+                <div className="truncate pr-2">
+                  <span className="font-bold text-[#18343A]">{selectedSource.name}</span>
+                  <span className="text-[11px] text-[#63777B] block truncate">{selectedSource.region}</span>
+                </div>
+                <Search className="w-3.5 h-3.5 text-[#8B9A9D] shrink-0" />
+              </button>
 
-            {isCustomSource && (
-              <div className="space-y-2 pt-1">
-                <input
-                  type="text"
-                  placeholder="Source Name"
-                  value={sourceName}
-                  onChange={(e) => setSourceName(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded p-1.5 text-xs text-slate-900 focus:outline-hidden focus:border-blue-500 font-sans"
-                />
-                <div className="flex gap-2">
-                  <div className="w-1/2">
-                    <label className="text-[10px] text-slate-500 block">Lat (°S)</label>
+              {showSourceDropdown && (
+                <div className="absolute top-full left-0 w-full mt-1 bg-white border border-[#DCE7E7] rounded-[10px] shadow-lg z-50 p-2 space-y-2 max-h-60 overflow-hidden flex flex-col font-sans">
+                  <div className="relative">
                     <input
-                      type="number"
-                      step="0.01"
-                      value={sourceLat}
-                      onChange={(e) => setSourceLat(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-300 rounded p-1 text-xs text-slate-900"
+                      type="text"
+                      placeholder="Search stations, countries, regions..."
+                      value={sourceSearch}
+                      onChange={(e) => setSourceSearch(e.target.value)}
+                      className="w-full bg-[#F5F7F7] border border-[#DCE7E7] rounded-[6px] pl-7 pr-7 py-1.5 text-xs text-[#18343A] focus:outline-none focus:border-[#2BB9BD]"
+                      autoFocus
                     />
+                    <Search className="w-3.5 h-3.5 text-[#8B9A9D] absolute left-2 top-2.5" />
+                    {sourceSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setSourceSearch('')}
+                        className="absolute right-2 top-2.5 text-[#8B9A9D] hover:text-[#18343A]"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
-                  <div className="w-1/2">
-                    <label className="text-[10px] text-slate-500 block">Lon (°W)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={sourceLon}
-                      onChange={(e) => setSourceLon(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-300 rounded p-1 text-xs text-slate-900"
-                    />
+
+                  <div className="overflow-y-auto max-h-44 space-y-1 pr-1 text-xs">
+                    {filteredSourceStations.map((st) => (
+                      <div
+                        key={st.id}
+                        onClick={() => handleSelectSource(st)}
+                        className={`p-2 rounded-[6px] cursor-pointer transition flex items-center justify-between ${
+                          selectedSourceId === st.id ? 'bg-[#D8F3F1] text-[#075563] font-bold border border-[#2BB9BD]/40' : 'hover:bg-[#E8F8F6] text-[#18343A]'
+                        }`}
+                      >
+                        <div>
+                          <div className="font-semibold text-[#18343A]">{st.name}</div>
+                          <div className="text-[11px] text-[#63777B]">{st.country} • {st.region}</div>
+                        </div>
+                        {st.isInlandForbidden && (
+                          <span className="text-[10px] px-1.5 py-0.3 bg-[#FFF7DE] text-[#8A6A22] rounded-[4px] border border-[#F6D77A] font-semibold">Inland</span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            {!isCustomSource && (
-              <div className="text-[10px] text-slate-500 pt-0.5">
-                Coords: <strong className="text-slate-800">{Math.abs(sourceLat).toFixed(2)}°S, {Math.abs(sourceLon).toFixed(2)}°W</strong>
-              </div>
-            )}
+            <div className="text-xs text-[#63777B] pt-0.5 flex justify-between">
+              <span>Coords: <strong className="text-[#18343A] font-semibold">{Math.abs(selectedSource.lat).toFixed(2)}°S, {Math.abs(selectedSource.lon).toFixed(2)}°{selectedSource.lon < 0 ? 'W' : 'E'}</strong></span>
+              <span className="text-[#8B9A9D]">{selectedSource.isCoastal ? 'Coastal Station' : 'Inland'}</span>
+            </div>
           </div>
 
-          {/* DESTINATION INPUT */}
-          <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2">
+          {/* DESTINATION SELECTOR */}
+          <div className="bg-[#E8F8F6]/40 p-3.5 rounded-[10px] border border-[#DCE7E7] space-y-2 relative">
             <div className="flex items-center justify-between">
-              <label className="text-[11px] font-semibold text-slate-800 flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-emerald-600" /> DESTINATION
+              <label className="text-xs font-semibold text-[#075563] flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-[#3F705A]" /> Destination (Arrival)
               </label>
-              <span className="text-[10px] text-slate-500">Arrival Target</span>
+              <span className="text-xs text-[#63777B] font-medium">{selectedDest.country}</span>
             </div>
 
-            <select
-              value={selectedDestPreset}
-              onChange={(e) => handleDestPresetChange(e.target.value)}
-              className="w-full bg-white border border-slate-300 rounded p-1.5 text-xs text-slate-900 focus:outline-hidden focus:border-blue-500 font-sans"
-            >
-              {POLAR_LOCATION_PRESETS.map((p) => (
-                <option key={p.name} value={p.name}>
-                  {p.name}
-                </option>
-              ))}
-              <option value="CUSTOM">Custom Latitude & Longitude...</option>
-            </select>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowDestDropdown(!showDestDropdown)}
+                className="w-full bg-white border border-[#DCE7E7] rounded-[8px] p-2.5 text-left text-xs text-[#18343A] focus:outline-none focus:border-[#2BB9BD] flex items-center justify-between shadow-2xs"
+              >
+                <div className="truncate pr-2">
+                  <span className="font-bold text-[#18343A]">{selectedDest.name}</span>
+                  <span className="text-[11px] text-[#63777B] block truncate">{selectedDest.region}</span>
+                </div>
+                <Search className="w-3.5 h-3.5 text-[#8B9A9D] shrink-0" />
+              </button>
 
-            {isCustomDest && (
-              <div className="space-y-2 pt-1">
-                <input
-                  type="text"
-                  placeholder="Destination Name"
-                  value={destName}
-                  onChange={(e) => setDestName(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded p-1.5 text-xs text-slate-900 focus:outline-hidden focus:border-blue-500 font-sans"
-                />
-                <div className="flex gap-2">
-                  <div className="w-1/2">
-                    <label className="text-[10px] text-slate-500 block">Lat (°S)</label>
+              {showDestDropdown && (
+                <div className="absolute top-full left-0 w-full mt-1 bg-white border border-[#DCE7E7] rounded-[10px] shadow-lg z-50 p-2 space-y-2 max-h-60 overflow-hidden flex flex-col font-sans">
+                  <div className="relative">
                     <input
-                      type="number"
-                      step="0.01"
-                      value={destLat}
-                      onChange={(e) => setDestLat(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-300 rounded p-1 text-xs text-slate-900"
+                      type="text"
+                      placeholder="Search stations, countries, regions..."
+                      value={destSearch}
+                      onChange={(e) => setDestSearch(e.target.value)}
+                      className="w-full bg-[#F5F7F7] border border-[#DCE7E7] rounded-[6px] pl-7 pr-7 py-1.5 text-xs text-[#18343A] focus:outline-none focus:border-[#2BB9BD]"
+                      autoFocus
                     />
+                    <Search className="w-3.5 h-3.5 text-[#8B9A9D] absolute left-2 top-2.5" />
+                    {destSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setDestSearch('')}
+                        className="absolute right-2 top-2.5 text-[#8B9A9D] hover:text-[#18343A]"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
-                  <div className="w-1/2">
-                    <label className="text-[10px] text-slate-500 block">Lon (°W)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={destLon}
-                      onChange={(e) => setDestLon(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-300 rounded p-1 text-xs text-slate-900"
-                    />
+
+                  <div className="overflow-y-auto max-h-44 space-y-1 pr-1 text-xs">
+                    {filteredDestStations.map((st) => (
+                      <div
+                        key={st.id}
+                        onClick={() => handleSelectDest(st)}
+                        className={`p-2 rounded-[6px] cursor-pointer transition flex items-center justify-between ${
+                          selectedDestId === st.id ? 'bg-[#E8F7F1] text-[#3F705A] font-bold border border-[#A9E2CF]' : 'hover:bg-[#E8F8F6] text-[#18343A]'
+                        }`}
+                      >
+                        <div>
+                          <div className="font-semibold text-[#18343A]">{st.name}</div>
+                          <div className="text-[11px] text-[#63777B]">{st.country} • {st.region}</div>
+                        </div>
+                        {st.isInlandForbidden && (
+                          <span className="text-[10px] px-1.5 py-0.3 bg-[#FFF7DE] text-[#8A6A22] rounded-[4px] border border-[#F6D77A] font-semibold">Inland</span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            {!isCustomDest && (
-              <div className="text-[10px] text-slate-500 pt-0.5">
-                Coords: <strong className="text-slate-800">{Math.abs(destLat).toFixed(2)}°S, {Math.abs(destLon).toFixed(2)}°W</strong>
-              </div>
-            )}
+            <div className="text-xs text-[#63777B] pt-0.5 flex justify-between">
+              <span>Coords: <strong className="text-[#18343A] font-semibold">{Math.abs(selectedDest.lat).toFixed(2)}°S, {Math.abs(selectedDest.lon).toFixed(2)}°{selectedDest.lon < 0 ? 'W' : 'E'}</strong></span>
+              <span className="text-[#8B9A9D]">{selectedDest.isCoastal ? 'Coastal Station' : 'Inland'}</span>
+            </div>
           </div>
         </div>
 
+        {/* IDENTICAL STATION WARNING */}
+        {isIdentical && (
+          <div className="p-3 bg-[#FDECEF] border border-[#F29BA8] rounded-[8px] text-[#9A4F5B] text-xs flex items-center gap-2.5 font-medium">
+            <AlertCircle className="w-4 h-4 text-[#9A4F5B] shrink-0" />
+            <span>Origin and destination research stations cannot be identical. Please select different stations.</span>
+          </div>
+        )}
+
+        {/* STALE MISSION / MODIFIED NOTICE */}
+        {isModifiedSinceCalc && !isIdentical && (
+          <div className="p-3 bg-[#FFF7DE] border border-[#F6D77A] rounded-[8px] text-[#8A6A22] text-xs flex items-center gap-2.5 font-medium">
+            <AlertCircle className="w-4 h-4 text-[#8A6A22] shrink-0" />
+            <span>Mission parameters modified — click <strong>Calculate & show paths on map</strong> to re-evaluate the voyage corridor.</span>
+          </div>
+        )}
+
         {/* Action Button & Status */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-          <div className="text-[11px] text-slate-600 font-sans">
-            Vessel: <strong className="text-slate-900">{selectedVessel.name}</strong> ({selectedVessel.iceClass})
+          <div className="text-xs text-[#63777B]">
+            Assigned vessel: <strong className="text-[#075563] font-semibold">{selectedVessel.name}</strong> ({selectedVessel.iceClass})
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {calculatedSuccess && (
-              <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Paths Recalculated!
+              <span className="text-xs text-[#3F705A] font-semibold flex items-center gap-1">
+                <CheckCircle2 className="w-4 h-4 text-[#3F705A]" /> Navigation paths calculated!
               </span>
             )}
             <button
               type="submit"
-              className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs tracking-wider flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer"
+              disabled={isIdentical}
+              className={`px-4 py-2 rounded-[8px] font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer ${
+                isIdentical
+                  ? 'bg-[#F5F7F7] text-[#8B9A9D] cursor-not-allowed border border-[#DCE7E7]'
+                  : 'bg-[#2BB9BD] hover:bg-[#22A8AC] text-white shadow-xs'
+              }`}
             >
               <Compass className="w-4 h-4" />
-              <span>Calculate & Show Paths on Map</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <span>Calculate & show paths on map</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>

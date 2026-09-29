@@ -161,16 +161,29 @@ export const HazardEncounterPanel: React.FC<HazardEncounterPanelProps> = ({
 
       {/* Main Encounters Section */}
       {displayedEncounters.length === 0 ? (
-        <div className="bg-slate-950/60 border border-emerald-900/40 rounded-xl p-6 text-center space-y-2">
-          <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-          <h4 className="font-semibold text-emerald-300 text-sm">NO RELEVANT ENCOUNTER IDENTIFIED</h4>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            All detected icebergs remain clear (&gt; 25 nm) of the vessel trajectory and route corridor.
-          </p>
-          <p className="text-[10px] text-slate-500 italic mt-2">
-            Notice: Absence of detected encounters does not guarantee complete absence of unmapped ice fragments or sub-resolution ice.
-          </p>
-        </div>
+        (evaluationResult as any).dataMode === 'UNAVAILABLE' ? (
+          <div data-testid="iceberg-telemetry-unavailable" className="bg-slate-950/60 border border-amber-900/40 rounded-xl p-6 text-center space-y-2">
+            <Radio className="w-8 h-8 text-amber-400 mx-auto" />
+            <h4 className="font-semibold text-amber-300 text-sm">ICEBERG OBSERVATION TELEMETRY UNAVAILABLE</h4>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              No current iceberg observations available from USNIC / satellite feeds.
+            </p>
+            <p className="text-[10px] text-amber-400/80 italic mt-2 font-medium">
+              Notice: Absence of current iceberg observations does NOT guarantee absence of hazards.
+            </p>
+          </div>
+        ) : (
+          <div className="bg-slate-950/60 border border-emerald-900/40 rounded-xl p-6 text-center space-y-2">
+            <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
+            <h4 className="font-semibold text-emerald-300 text-sm">NO RELEVANT ENCOUNTER IDENTIFIED</h4>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              All detected icebergs remain clear (&gt; 25 nm) of the vessel trajectory and route corridor.
+            </p>
+            <p className="text-[10px] text-slate-500 italic mt-2">
+              Notice: Absence of detected encounters does not guarantee complete absence of unmapped ice fragments or sub-resolution ice.
+            </p>
+          </div>
+        )
       ) : (
         <div className="space-y-3">
           {/* Encounter Selection List */}

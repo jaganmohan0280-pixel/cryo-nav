@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import L from 'leaflet';
 import { useApp } from '../../context/AppContext';
-import { ANTARCTIC_STATIONS } from '../../data/syntheticAntarcticData';
+import { AUTHORITATIVE_RESEARCH_STATIONS } from '../../data/researchStations';
 import { RoutePlannerWidget } from '../RoutePlannerWidget';
 import { calculateDistanceToRouteNm, calculateRouteCorridorPolygon } from '../../services/riskEngine';
 import { forecastSeaIceField } from '../../services/seaIceModel';
@@ -12,6 +12,7 @@ import {
   generateAreaConditionReport,
   haversineDistanceKm,
 } from '../../data/analysis/areaSarAnalysisEngine';
+import { ALL_PROHIBITED_POLYGONS } from '../../services/antarcticGeographicMask';
 import {
   Layers,
   Compass,
@@ -105,6 +106,22 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
   const [selectedSarCandidateId, setSelectedSarCandidateId] = useState<string | null>(null);
   const [mapZoom, setMapZoom] = useState<number>(5);
 
+  const [isMapLayersOpen, setIsMapLayersOpen] = useState<boolean>(false);
+  const [showNavMask, setShowNavMask] = useState<boolean>(false);
+  const mapLayersContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mapLayersContainerRef.current && !mapLayersContainerRef.current.contains(event.target as Node)) {
+        setIsMapLayersOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   // Layer groups refs to update without re-initializing the entire map
   const seaIceLayerRef = useRef<L.LayerGroup>(L.layerGroup());
   const icebergsLayerRef = useRef<L.LayerGroup>(L.layerGroup());
@@ -118,6 +135,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
   const stationsLayerRef = useRef<L.LayerGroup>(L.layerGroup());
   const sarCandidatesLayerRef = useRef<L.LayerGroup>(L.layerGroup());
   const selectedAreaLayerRef = useRef<L.LayerGroup>(L.layerGroup());
+  const navMaskLayerRef = useRef<L.LayerGroup>(L.layerGroup());
 
   // Phase 7C.4-UX Redesign — Area-Centric SAR Analysis State
   const [isAreaSelectionActive, setIsAreaSelectionActive] = useState<boolean>(false);
@@ -177,6 +195,12 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
       maxZoom: 14,
       zoomControl: false,
       attributionControl: true,
+      worldCopyJump: false,
+      maxBounds: [
+        [-85, -180],
+        [85, 180],
+      ],
+      maxBoundsViscosity: 1.0,
     });
 
     // Default to Satellite tiles
@@ -184,6 +208,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
       maxZoom: TILE_SERVERS.satellite.maxZoom,
       subdomains: TILE_SERVERS.satellite.subdomains || 'abc',
       attribution: TILE_SERVERS.satellite.attribution,
+      noWrap: true,
     }).addTo(map);
     baseTileLayerRef.current = initialTile;
 
@@ -205,6 +230,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
     icebergsLayerRef.current.addTo(map);
     sarCandidatesLayerRef.current.addTo(map);
     vesselLayerRef.current.addTo(map);
+    navMaskLayerRef.current.addTo(map);
 
     mapInstanceRef.current = map;
 
@@ -244,6 +270,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
       maxZoom: tileConfig.maxZoom,
       subdomains: tileConfig.subdomains || 'abc',
       attribution: tileConfig.attribution,
+      noWrap: true,
     });
     tileLayer.addTo(mapInstanceRef.current);
     baseTileLayerRef.current = tileLayer;
@@ -307,6 +334,15 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
     routes.forEach((r) => r.waypoints.forEach((wp) => allPoints.push(wp)));
     const bounds = L.latLngBounds(allPoints);
     mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 9, animate: true });
+  };
+
+  const handleFullAntarcticaView = () => {
+    if (!mapInstanceRef.current) return;
+    const bounds = L.latLngBounds([
+      [-82.0, -180.0],
+      [-60.0, 180.0],
+    ]);
+    mapInstanceRef.current.fitBounds(bounds, { padding: [20, 20], animate: true });
   };
 
   const handleExecuteAreaAnalysis = useCallback(() => {
@@ -392,11 +428,11 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
     // 1. Render Custom Source Pin (Origin)
     const sourceIconHtml = `
       <div class="relative flex items-center justify-center">
-        <div class="w-4 h-4 rounded-full bg-cyan-600 ring-4 ring-cyan-500/40 flex items-center justify-center shadow-lg">
+        <div class="w-4 h-4 rounded-full bg-[#315E62] ring-4 ring-[#315E62]/40 flex items-center justify-center shadow-lg">
           <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
         </div>
-        <span class="absolute left-5 whitespace-nowrap text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-slate-900 text-cyan-300 border border-cyan-700 pointer-events-none shadow-lg">
-          ORIGIN: ${mission.startLocation.name.split('(')[0].trim()}
+        <span class="absolute left-5 whitespace-nowrap text-[13px] font-sans font-semibold px-2.5 py-1 rounded-md bg-[#263238] text-white border border-slate-600 pointer-events-none shadow-lg" title="${mission.startLocation.name}">
+          Origin · ${mission.startLocation.name.split('(')[0].trim()}
         </span>
       </div>
     `;
@@ -408,14 +444,14 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
     });
     L.marker([mission.startLocation.lat, mission.startLocation.lon], { icon: sourceIcon })
       .bindPopup(`
-        <div class="p-2.5 font-mono text-xs space-y-1">
-          <div class="font-bold text-cyan-400 flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
-            MISSION SOURCE (ORIGIN)
+        <div class="p-3 font-sans text-xs space-y-1">
+          <div class="font-bold text-[#315E62] text-sm flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-[#315E62]"></span>
+            Origin Station
           </div>
-          <div class="text-slate-200 font-semibold">${mission.startLocation.name}</div>
-          <div class="text-slate-400 text-[11px]">
-            Coords: ${Math.abs(mission.startLocation.lat).toFixed(3)}°S, ${Math.abs(mission.startLocation.lon).toFixed(3)}°W
+          <div class="text-[#263238] font-semibold text-sm">${mission.startLocation.name}</div>
+          <div class="text-[#596267] text-xs">
+            Coordinates: ${Math.abs(mission.startLocation.lat).toFixed(3)}°S, ${Math.abs(mission.startLocation.lon).toFixed(3)}°W
           </div>
         </div>
       `)
@@ -424,11 +460,11 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
     // 2. Render Custom Destination Pin
     const destIconHtml = `
       <div class="relative flex items-center justify-center">
-        <div class="w-4 h-4 rounded-full bg-emerald-600 ring-4 ring-emerald-500/40 flex items-center justify-center shadow-lg">
+        <div class="w-4 h-4 rounded-full bg-[#52715B] ring-4 ring-[#52715B]/40 flex items-center justify-center shadow-lg">
           <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
         </div>
-        <span class="absolute left-5 whitespace-nowrap text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-slate-900 text-emerald-300 border border-emerald-700 pointer-events-none shadow-lg">
-          DESTINATION: ${mission.destination.name.split('(')[0].trim()}
+        <span class="absolute left-5 whitespace-nowrap text-[13px] font-sans font-semibold px-2.5 py-1 rounded-md bg-[#263238] text-white border border-slate-600 pointer-events-none shadow-lg" title="${mission.destination.name}">
+          Destination · ${mission.destination.name.split('(')[0].trim()}
         </span>
       </div>
     `;
@@ -440,30 +476,31 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
     });
     L.marker([mission.destination.lat, mission.destination.lon], { icon: destIcon })
       .bindPopup(`
-        <div class="p-2.5 font-mono text-xs space-y-1">
-          <div class="font-bold text-emerald-400 flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-            MISSION DESTINATION
+        <div class="p-3 font-sans text-xs space-y-1">
+          <div class="font-bold text-[#52715B] text-sm flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-[#52715B]"></span>
+            Destination Station
           </div>
-          <div class="text-slate-200 font-semibold">${mission.destination.name}</div>
-          <div class="text-slate-400 text-[11px]">
-            Coords: ${Math.abs(mission.destination.lat).toFixed(3)}°S, ${Math.abs(mission.destination.lon).toFixed(3)}°W
+          <div class="text-[#263238] font-semibold text-sm">${mission.destination.name}</div>
+          <div class="text-[#596267] text-xs">
+            Coordinates: ${Math.abs(mission.destination.lat).toFixed(3)}°S, ${Math.abs(mission.destination.lon).toFixed(3)}°W
           </div>
         </div>
       `)
       .addTo(layer);
 
     // 3. Render Antarctic Regional Stations
-    ANTARCTIC_STATIONS.forEach((st) => {
+    AUTHORITATIVE_RESEARCH_STATIONS.forEach((st) => {
       const isStart = Math.abs(st.lat - mission.startLocation.lat) < 0.1 && Math.abs(st.lon - mission.startLocation.lon) < 0.1;
       const isDest = Math.abs(st.lat - mission.destination.lat) < 0.1 && Math.abs(st.lon - mission.destination.lon) < 0.1;
       if (isStart || isDest) return;
 
+      const stationCleanName = st.name.split('(')[0].trim();
       const iconHtml = `
         <div class="relative flex items-center justify-center">
-          <div class="w-3 h-3 rounded-full bg-slate-400 ring-2 ring-slate-600"></div>
-          <span class="absolute left-4 whitespace-nowrap text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-slate-900/90 border border-slate-700 text-slate-300 pointer-events-none shadow-md">
-            ${st.name.split('(')[0].trim()}
+          <div class="w-3 h-3 rounded-full bg-[#596267] ring-2 ring-white"></div>
+          <span class="absolute left-4 whitespace-nowrap text-[12px] font-sans font-medium px-2 py-0.5 rounded-md bg-[#263238]/90 border border-slate-600 text-white pointer-events-none shadow-md" title="${st.name}">
+            ${stationCleanName}
           </span>
         </div>
       `;
@@ -477,9 +514,9 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
 
       const marker = L.marker([st.lat, st.lon], { icon: customIcon });
       marker.bindPopup(`
-        <div class="p-2 space-y-1 text-xs">
-          <div class="font-bold text-slate-100">${st.name}</div>
-          <div class="text-[11px] text-slate-400 font-mono">
+        <div class="p-2.5 space-y-1 text-xs font-sans">
+          <div class="font-bold text-[#263238] text-sm">${st.name}</div>
+          <div class="text-xs text-[#596267]">
             Lat: ${Math.abs(st.lat).toFixed(2)}°S, Lon: ${Math.abs(st.lon).toFixed(2)}°W
           </div>
         </div>
@@ -1334,6 +1371,102 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
     marker.addTo(layer);
   }, [gpsTracking, selectedVessel, isTrajectoryMode, isSeaIceMode]);
 
+  // Render Development Diagnostic Navigation Mask Polygons
+  useEffect(() => {
+    const layer = navMaskLayerRef.current;
+    layer.clearLayers();
+    if (!showNavMask) return;
+
+    ALL_PROHIBITED_POLYGONS.forEach((poly) => {
+      const isLand = poly.type === 'LAND';
+      const polygonOverlay = L.polygon(
+        poly.coordinates.map((c) => [c[0], c[1]] as [number, number]),
+        {
+          color: isLand ? '#ef4444' : '#a855f7',
+          fillColor: isLand ? '#dc2626' : '#9333ea',
+          fillOpacity: 0.35,
+          weight: 2,
+          dashArray: isLand ? '4, 4' : '6, 6',
+        }
+      );
+      polygonOverlay.bindTooltip(
+        `<div class="font-mono text-xs font-bold text-slate-900">${poly.name} (${poly.type}) — IMPASSABLE</div>`,
+        { sticky: true }
+      );
+      polygonOverlay.addTo(layer);
+    });
+  }, [showNavMask]);
+
+  // Render Research Stations (Origin, Destination & Surrounding Regional Stations)
+  useEffect(() => {
+    const layer = stationsLayerRef.current;
+    layer.clearLayers();
+
+    if (!mapLayers.stations) return;
+
+    AUTHORITATIVE_RESEARCH_STATIONS.forEach((st) => {
+      const isOrigin = Math.abs(st.lat - mission.startLocation.lat) < 0.15 && Math.abs(st.lon - mission.startLocation.lon) < 0.15;
+      const isDest = Math.abs(st.lat - mission.destination.lat) < 0.15 && Math.abs(st.lon - mission.destination.lon) < 0.15;
+
+      const bgColor = isOrigin
+        ? 'bg-emerald-600 border-emerald-300 ring-2 ring-emerald-500/40 scale-110'
+        : isDest
+        ? 'bg-cyan-600 border-cyan-300 ring-2 ring-cyan-500/40 scale-110'
+        : 'bg-[#315E62] border-white/80';
+
+      const markerHtml = `
+        <div class="relative flex items-center justify-center select-none cursor-pointer">
+          <div class="w-4 h-4 rounded-full ${bgColor} border-2 shadow-md flex items-center justify-center">
+            <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+          </div>
+          ${
+            isOrigin
+              ? `
+            <div class="absolute -top-7 whitespace-nowrap px-2 py-0.5 rounded font-sans text-[10px] font-bold bg-emerald-950 text-emerald-100 border border-emerald-400 shadow-md flex items-center gap-1 z-[1000]">
+              <span>ORIGIN: ${st.shortName}</span>
+            </div>
+          `
+              : isDest
+              ? `
+            <div class="absolute -top-7 whitespace-nowrap px-2 py-0.5 rounded font-sans text-[10px] font-bold bg-cyan-950 text-cyan-100 border border-cyan-400 shadow-md flex items-center gap-1 z-[1000]">
+              <span>DESTINATION: ${st.shortName}</span>
+            </div>
+          `
+              : ''
+          }
+        </div>
+      `;
+
+      const stationIcon = L.divIcon({
+        html: markerHtml,
+        className: 'custom-station-marker',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+      });
+
+      const marker = L.marker([st.lat, st.lon], { icon: stationIcon });
+      marker.bindTooltip(
+        `
+        <div class="p-1 font-sans text-[11px] leading-tight select-none">
+          <div class="font-bold text-[#315E62] flex items-center gap-1.5">
+            <span>${st.name}</span>
+            ${isOrigin ? '<span class="text-[9px] px-1 bg-emerald-100 text-emerald-800 font-bold rounded">ORIGIN</span>' : ''}
+            ${isDest ? '<span class="text-[9px] px-1 bg-cyan-100 text-cyan-800 font-bold rounded">DESTINATION</span>' : ''}
+          </div>
+          <div class="text-[#596267]">${st.operator} (${st.country})</div>
+          <div class="text-[#737A59] text-[10px] mt-0.5">${st.region}</div>
+          <div class="text-[10px] text-slate-500 font-mono mt-0.5">${Math.abs(st.lat).toFixed(2)}°S, ${Math.abs(st.lon).toFixed(2)}°E</div>
+        </div>
+      `,
+        { sticky: true, opacity: 0.95 }
+      );
+
+      marker.addTo(layer);
+    });
+  }, [mapLayers.stations, mission.startLocation, mission.destination]);
+
+
+
   // Fetch candidate records & confirmation evaluations when SAR Candidates layer is enabled
   useEffect(() => {
     if (!mapLayers.sarCandidates) return;
@@ -1634,38 +1767,38 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
   return (
     <div className="relative w-full h-full min-h-[420px] bg-slate-200 overflow-hidden flex flex-col">
       {/* Map Header Overlay Bar (Basemap Selection & Quick Navigation Controls) */}
-      <div className="absolute top-3 left-3 z-[1000] flex items-center gap-2 bg-white/95 backdrop-blur-xs p-2 rounded border border-slate-300 shadow-md text-xs font-mono select-none">
+      <div className="absolute top-3 left-3 z-[1000] flex items-center gap-2 bg-[#FCFBF7]/95 backdrop-blur-xs p-2 rounded-[8px] border border-[#D4D1C7] shadow-subtle text-xs font-sans select-none">
         {/* Basemap Selection */}
-        <div className="flex items-center gap-1 pr-2 border-r border-slate-200">
-          <span className="text-[10px] text-slate-500 uppercase flex items-center gap-1 font-semibold">
-            <Satellite className="w-3 h-3 text-slate-700" /> Base:
+        <div className="flex items-center gap-1.5 pr-2 border-r border-[#D4D1C7]">
+          <span className="text-xs text-[#596267] flex items-center gap-1 font-medium">
+            <Satellite className="w-3.5 h-3.5 text-[#315E62]" /> Base:
           </span>
           <button
             onClick={() => setBasemapMode('satellite')}
-            className={`px-2 py-0.5 rounded text-[10px] font-bold transition flex items-center gap-1 ${
+            className={`px-2.5 py-1 rounded-[6px] text-xs font-medium transition flex items-center gap-1 ${
               basemapMode === 'satellite'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 bg-slate-100'
+                ? 'bg-[#315E62] text-white shadow-2xs font-semibold'
+                : 'text-[#364148] hover:text-[#263238] bg-[#F3F0E8]'
             }`}
           >
-            <Satellite className="w-2.5 h-2.5" /> Satellite
+            Satellite
           </button>
           <button
             onClick={() => setBasemapMode('dark')}
-            className={`px-2 py-0.5 rounded text-[10px] font-bold transition flex items-center gap-1 ${
+            className={`px-2.5 py-1 rounded-[6px] text-xs font-medium transition flex items-center gap-1 ${
               basemapMode === 'dark'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 bg-slate-100'
+                ? 'bg-[#315E62] text-white shadow-2xs font-semibold'
+                : 'text-[#364148] hover:text-[#263238] bg-[#F3F0E8]'
             }`}
           >
             Dark
           </button>
           <button
             onClick={() => setBasemapMode('ocean')}
-            className={`px-2 py-0.5 rounded text-[10px] font-bold transition flex items-center gap-1 ${
+            className={`px-2.5 py-1 rounded-[6px] text-xs font-medium transition flex items-center gap-1 ${
               basemapMode === 'ocean'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 bg-slate-100'
+                ? 'bg-[#315E62] text-white shadow-2xs font-semibold'
+                : 'text-[#364148] hover:text-[#263238] bg-[#F3F0E8]'
             }`}
           >
             Ocean
@@ -1673,25 +1806,24 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
         </div>
 
         {/* Quick View Controls (Hidden in Trajectory & Sea-Ice Modes) */}
-        {/* Quick View Controls (Hidden in Trajectory & Sea-Ice Modes) */}
         {!isTrajectoryMode && !isSeaIceMode && (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => setShowPlannerOverlay((prev) => !prev)}
-              className={`px-2 py-0.5 rounded text-[10px] font-bold transition flex items-center gap-1 border ${
+              className={`px-3 py-1 rounded-[6px] text-xs font-medium transition flex items-center gap-1.5 border ${
                 showPlannerOverlay
-                  ? 'bg-blue-600 text-white border-blue-700'
-                  : 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100'
+                  ? 'bg-[#315E62] text-white border-[#315E62]'
+                  : 'bg-[#E1ECEB] text-[#315E62] border-[#315E62]/30 hover:bg-[#315E62]/10'
               }`}
             >
-              <Navigation className="w-3 h-3" /> Change Source/Dest
+              <Navigation className="w-3.5 h-3.5" /> Change origin / destination
             </button>
             <button
               onClick={handleCenterVessel}
               title="Center map on vessel coordinates"
-              className="px-2 py-0.5 rounded text-[10px] font-bold text-amber-900 hover:bg-amber-100 bg-amber-50 border border-amber-300 flex items-center gap-1 transition"
+              className="px-3 py-1 rounded-[6px] text-xs font-medium text-[#315E62] hover:bg-[#E1ECEB] bg-[#FCFBF7] border border-[#D4D1C7] flex items-center gap-1.5 transition"
             >
-              <Crosshair className="w-3 h-3 text-amber-700" /> Focus Ship
+              <Crosshair className="w-3.5 h-3.5 text-[#315E62]" /> Focus vessel
             </button>
             <button
               onClick={() => {
@@ -1702,28 +1834,35 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
                   setShowAreaSarEvidence(false);
                 }
               }}
-              className={`px-2 py-0.5 rounded text-[10px] font-bold transition flex items-center gap-1 border ${
+              className={`px-3 py-1 rounded-[6px] text-xs font-medium transition flex items-center gap-1.5 border ${
                 isAreaSelectionActive || selectedArea
-                  ? 'bg-amber-600 text-white border-amber-700 shadow-xs'
-                  : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
+                  ? 'bg-[#737A59] text-white border-[#737A59] shadow-2xs'
+                  : 'bg-[#FCFBF7] text-[#364148] border-[#D4D1C7] hover:bg-[#F3F0E8]'
               }`}
             >
-              <Target className="w-3 h-3 text-amber-700" />
-              {isAreaSelectionActive ? 'Selecting Area...' : 'Analyze Area'}
+              <Target className="w-3.5 h-3.5 text-[#737A59]" />
+              {isAreaSelectionActive ? 'Selecting area...' : 'Analyze area'}
             </button>
             <button
               onClick={() => handleAnalyzeAhead(areaRadiusKm)}
-              className="px-2 py-0.5 rounded text-[10px] font-bold text-sky-900 hover:bg-sky-100 bg-sky-50 border border-sky-300 flex items-center gap-1 transition"
+              className="px-3 py-1 rounded-[6px] text-xs font-medium text-[#315E62] hover:bg-[#E1ECEB] bg-[#FCFBF7] border border-[#D4D1C7] flex items-center gap-1.5 transition"
               title="Analyze corridor ahead of vessel along active route"
             >
-              <Compass className="w-3 h-3 text-sky-700" /> Analyze Ahead
+              <Compass className="w-3.5 h-3.5 text-[#315E62]" /> Analyze ahead
             </button>
             <button
               onClick={handleResetVoyageView}
-              title="Fit Antarctic Voyage Bounds"
-              className="px-2 py-0.5 rounded text-[10px] font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 border border-slate-200 flex items-center gap-1 transition"
+              title="Fit Mission Corridor Bounds (Maitri to Bharati)"
+              className="px-3 py-1 rounded-[6px] text-xs font-medium text-[#315E62] hover:bg-[#E1ECEB] bg-[#FCFBF7] border border-[#D4D1C7] flex items-center gap-1.5 transition"
             >
-              <Compass className="w-3 h-3 text-slate-700" /> Full Voyage
+              <Compass className="w-3.5 h-3.5 text-[#315E62]" /> Focus Corridor
+            </button>
+            <button
+              onClick={handleFullAntarcticaView}
+              title="Zoom out to Full Antarctic Continent"
+              className="px-3 py-1 rounded-[6px] text-xs font-medium text-[#364148] hover:text-[#263238] bg-[#FCFBF7] border border-[#D4D1C7] flex items-center gap-1.5 transition"
+            >
+              <Globe className="w-3.5 h-3.5 text-[#596267]" /> Full Antarctica
             </button>
           </div>
         )}
@@ -2038,120 +2177,156 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
         </div>
       )}
 
-      {/* Floating MAP PARAMETERS Control Panel for Default Mode */}
+      {/* Map Layers Control Toggle & Compact Popover */}
       {!isTrajectoryMode && !isSeaIceMode && (
-        <div className="absolute top-14 left-3 z-[1000] flex flex-col bg-white/95 backdrop-blur-xs border border-slate-300 shadow-md rounded p-2.5 text-xs font-mono text-slate-800 select-none w-52 max-h-[calc(100%-75px)] overflow-y-auto">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-1 mb-1.5 font-bold text-slate-900 text-[10px] tracking-wider uppercase">
-            <span className="flex items-center gap-1.5">
-              <Layers className="w-3 h-3 text-slate-700" />
-              MAP PARAMETERS
-            </span>
-            <span className="text-[9px] px-1 rounded bg-slate-100 text-slate-500 border border-slate-200 font-semibold">
-              WGS84
-            </span>
-          </div>
+        <div ref={mapLayersContainerRef} className="absolute top-14 left-3 z-[1000] select-none font-mono">
+          <button
+            onClick={() => setIsMapLayersOpen(!isMapLayersOpen)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/90 text-white hover:bg-slate-800 rounded-md border border-slate-700 shadow-lg text-xs font-bold transition"
+            title="Toggle Map Layers"
+          >
+            <Layers className="w-3.5 h-3.5 text-cyan-400" />
+            <span>⚙ Map Layers</span>
+          </button>
 
-          <div className="space-y-0.5 text-[10.5px]">
-            <label className="flex items-center justify-between cursor-pointer select-none py-0.5 px-1 rounded hover:bg-slate-100/80 transition">
-              <span className="text-slate-700 font-medium">Tracked Icebergs</span>
-              <input
-                type="checkbox"
-                checked={mapLayers.icebergs}
-                onChange={() => toggleMapLayer('icebergs')}
-                className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-0 accent-slate-900 cursor-pointer"
-              />
-            </label>
-
-            <label className="flex items-center justify-between cursor-pointer select-none py-0.5 px-1 rounded hover:bg-slate-100/80 transition">
-              <span className="text-slate-700 font-medium">SAR Candidates</span>
-              <input
-                type="checkbox"
-                checked={mapLayers.sarCandidates}
-                onChange={() => toggleMapLayer('sarCandidates')}
-                className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-0 accent-slate-900 cursor-pointer"
-              />
-            </label>
-
-            <label className="flex items-center justify-between cursor-pointer select-none py-0.5 px-1 rounded hover:bg-slate-100/80 transition">
-              <span className="text-slate-700 font-medium">Uncertainty Envelope</span>
-              <input
-                type="checkbox"
-                checked={mapLayers.uncertainty}
-                onChange={() => toggleMapLayer('uncertainty')}
-                className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-0 accent-slate-900 cursor-pointer"
-              />
-            </label>
-
-            <label className="flex items-center justify-between cursor-pointer select-none py-0.5 px-1 rounded hover:bg-slate-100/80 transition">
-              <span className="text-slate-700 font-medium">Sea Ice Field</span>
-              <input
-                type="checkbox"
-                checked={mapLayers.seaIce}
-                onChange={() => toggleMapLayer('seaIce')}
-                className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-0 accent-slate-900 cursor-pointer"
-              />
-            </label>
-
-            <label className="flex items-center justify-between cursor-pointer select-none py-0.5 px-1 rounded hover:bg-slate-100/80 transition">
-              <span className="text-slate-700 font-medium">Drift Vectors</span>
-              <input
-                type="checkbox"
-                checked={mapLayers.trajectories}
-                onChange={() => toggleMapLayer('trajectories')}
-                className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-0 accent-slate-900 cursor-pointer"
-              />
-            </label>
-
-            <label className="flex items-center justify-between cursor-pointer select-none py-0.5 px-1 rounded hover:bg-slate-100/80 transition">
-              <span className="text-slate-700 font-medium">Currents & Wind</span>
-              <input
-                type="checkbox"
-                checked={mapLayers.ocean && mapLayers.weather}
-                onChange={() => {
-                  toggleMapLayer('ocean');
-                  toggleMapLayer('weather');
-                }}
-                className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-0 accent-slate-900 cursor-pointer"
-              />
-            </label>
-
-            <label className="flex items-center justify-between cursor-pointer select-none py-0.5 px-1 rounded hover:bg-slate-100/80 transition">
-              <span className="text-slate-700 font-medium">Route Corridors</span>
-              <input
-                type="checkbox"
-                checked={mapLayers.routes}
-                onChange={() => toggleMapLayer('routes')}
-                className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-0 accent-slate-900 cursor-pointer"
-              />
-            </label>
-          </div>
-
-          <div className="mt-1.5 pt-1.5 border-t border-slate-200 text-[9.5px] space-y-0.5 text-slate-600 font-sans">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-0.5 bg-emerald-600 rounded"></span>
-              <span>SAFEST Route</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-0.5 bg-blue-600 rounded"></span>
-              <span>BALANCED Route</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-0.5 bg-amber-600 rounded"></span>
-              <span>FASTEST Route</span>
-            </div>
-            {activeCounterfactualResult && (
-              <div className="flex items-center gap-1.5 pt-0.5 border-t border-slate-200">
-                <span className="w-2.5 h-0.5 bg-pink-500 rounded border-b border-dashed border-white"></span>
-                <span className="font-bold text-pink-700">Counterfactual Route (---)</span>
+          {isMapLayersOpen && (
+            <div className="mt-2 flex flex-col bg-white/95 backdrop-blur-md border border-slate-300 shadow-2xl rounded-lg p-3 text-xs text-slate-800 w-56 max-h-[calc(100vh-140px)] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-1.5 mb-2 font-bold text-slate-900 text-[11px] tracking-wider uppercase">
+                <span className="flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-slate-700" />
+                  MAP LAYERS
+                </span>
+                <button
+                  onClick={() => setIsMapLayersOpen(false)}
+                  className="text-slate-400 hover:text-slate-700 p-0.5 rounded transition"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
-            )}
-            {selectedAcquisitionFootprintId && (
-              <div className="flex items-center gap-1.5 pt-0.5 border-t border-slate-200">
-                <span className="w-2.5 h-2.5 rounded-full border border-blue-500 bg-blue-500/20 border-dashed"></span>
-                <span className="font-bold text-blue-700">Observation Footprint</span>
+
+              <div className="space-y-1 text-[11px]">
+                <label className="flex items-center justify-between cursor-pointer py-1 px-1 rounded hover:bg-slate-100 transition">
+                  <span className="text-slate-700 font-medium">Sea Ice Field</span>
+                  <input
+                    type="checkbox"
+                    checked={mapLayers.seaIce}
+                    onChange={() => toggleMapLayer('seaIce')}
+                    className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-0 accent-slate-900 cursor-pointer"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between cursor-pointer py-1 px-1 rounded hover:bg-slate-100 transition">
+                  <span className="text-slate-700 font-medium">Route Corridors</span>
+                  <input
+                    type="checkbox"
+                    checked={mapLayers.routes}
+                    onChange={() => toggleMapLayer('routes')}
+                    className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-0 accent-slate-900 cursor-pointer"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between cursor-pointer py-1 px-1 rounded hover:bg-slate-100 transition">
+                  <span className="text-slate-700 font-medium">Tracked Icebergs</span>
+                  <input
+                    type="checkbox"
+                    checked={mapLayers.icebergs}
+                    onChange={() => toggleMapLayer('icebergs')}
+                    className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-0 accent-slate-900 cursor-pointer"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between cursor-pointer py-1 px-1 rounded hover:bg-slate-100 transition">
+                  <span className="text-slate-700 font-medium">Uncertainty Envelope</span>
+                  <input
+                    type="checkbox"
+                    checked={mapLayers.uncertainty}
+                    onChange={() => toggleMapLayer('uncertainty')}
+                    className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-0 accent-slate-900 cursor-pointer"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between cursor-pointer py-1 px-1 rounded hover:bg-slate-100 transition">
+                  <span className="text-slate-700 font-medium">Drift Vectors</span>
+                  <input
+                    type="checkbox"
+                    checked={mapLayers.trajectories}
+                    onChange={() => toggleMapLayer('trajectories')}
+                    className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-0 accent-slate-900 cursor-pointer"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between cursor-pointer py-1 px-1 rounded hover:bg-slate-100 transition">
+                  <span className="text-slate-700 font-medium">Currents & Wind</span>
+                  <input
+                    type="checkbox"
+                    checked={mapLayers.ocean && mapLayers.weather}
+                    onChange={() => {
+                      toggleMapLayer('ocean');
+                      toggleMapLayer('weather');
+                    }}
+                    className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-0 accent-slate-900 cursor-pointer"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between cursor-pointer py-1 px-1 rounded hover:bg-slate-100 transition">
+                  <span className="text-slate-700 font-medium">SAR Evidence</span>
+                  <input
+                    type="checkbox"
+                    checked={mapLayers.sarCandidates}
+                    onChange={() => toggleMapLayer('sarCandidates')}
+                    className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-0 accent-slate-900 cursor-pointer"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between cursor-pointer py-1 px-1 rounded hover:bg-slate-100 transition border-t border-slate-200 mt-1 pt-1">
+                  <span className="text-slate-800 font-bold flex items-center gap-1">
+                    <Shield className="w-3.5 h-3.5 text-red-600" />
+                    Navigation Mask (Diagnostic)
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={showNavMask}
+                    onChange={(e) => setShowNavMask(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded border-slate-300 text-red-600 focus:ring-0 accent-red-600 cursor-pointer"
+                  />
+                </label>
+
+
               </div>
-            )}
-          </div>
+
+              <div className="mt-2 pt-2 border-t border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                  ROUTES
+                </span>
+                <div className="space-y-1 text-[10px] font-sans">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-0.5 bg-emerald-600 rounded"></span>
+                    <span className="font-semibold text-emerald-800">SAFEST</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-0.5 bg-blue-600 rounded"></span>
+                    <span className="font-semibold text-blue-800">BALANCED</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-0.5 bg-amber-600 rounded"></span>
+                    <span className="font-semibold text-amber-800">FASTEST</span>
+                  </div>
+                  {activeCounterfactualResult && (
+                    <div className="flex items-center gap-1.5 pt-0.5 border-t border-slate-200">
+                      <span className="w-2.5 h-0.5 bg-pink-500 rounded border-b border-dashed border-white"></span>
+                      <span className="font-bold text-pink-700">Counterfactual Route (---)</span>
+                    </div>
+                  )}
+                  {selectedAcquisitionFootprintId && (
+                    <div className="flex items-center gap-1.5 pt-0.5 border-t border-slate-200">
+                      <span className="w-2.5 h-2.5 rounded-full border border-blue-500 bg-blue-500/20 border-dashed"></span>
+                      <span className="font-bold text-blue-700">Observation Footprint</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2342,6 +2517,8 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
           )}
         </div>
       )}
+
+
 
       {/* Primary Leaflet Container */}
       <div ref={mapContainerRef} className="w-full h-full min-h-[420px] relative z-0" />

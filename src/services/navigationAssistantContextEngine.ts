@@ -32,7 +32,7 @@ import {
 
 import { HazardEncounter, SeaIceExposureResult } from './hazardEncounterEngine';
 import { UncertaintyEvaluationResult, UncertaintyZone } from './uncertaintyEngine';
-import { DecisionImpactAcquisitionResult } from './decisionImpactAcquisitionEngine';
+import { AcquisitionRankingResult } from './decisionImpactAcquisitionEngine';
 import { DecisionReassessmentResult, ReassessmentStatus } from './decisionReassessmentEngine';
 import { RouteResilienceEvaluationResult, RouteSensitivityClassification } from './routeResilienceEngine';
 import { NavigationAlertEvaluationResult, NavigationAlert } from './navigationAlertEngine';
@@ -151,6 +151,8 @@ export interface StructuredAnswers {
   limitationsNavigatorShouldKnow: string;
 }
 
+import { NavigationOperationalState } from './navigationOperationalStateEngine';
+
 export interface NavigationAssistantContextInput {
   mission?: MissionConfig | null;
   vessel?: VesselProfile | null;
@@ -160,7 +162,7 @@ export interface NavigationAssistantContextInput {
   seaIceExposure?: SeaIceExposureResult | null;
   uncertainty?: UncertaintyEvaluationResult | UncertaintyZone | null;
   confidence?: DecisionConfidenceResult | null;
-  acquisitionPriorities?: DecisionImpactAcquisitionResult | null;
+  acquisitionPriorities?: AcquisitionRankingResult | null;
   reassessment?: DecisionReassessmentResult | null;
   resilience?: RouteResilienceEvaluationResult | null;
   alerts?: NavigationAlertEvaluationResult | NavigationAlert[] | null;
@@ -169,6 +171,7 @@ export interface NavigationAssistantContextInput {
   dataMode?: ContextDataMode;
   provenance?: string;
   referenceTimeIso?: string;
+  operationalState?: NavigationOperationalState | null;
 }
 
 export interface NavigationAssistantContextResult {
@@ -219,7 +222,7 @@ export function buildNavigationAssistantContext(
 ): NavigationAssistantContextResult {
   const generatedAt = input.referenceTimeIso || new Date().toISOString();
   const inputDataMode = input.dataMode || 'SIMULATED';
-  const provenance = input.provenance || 'Phase 16A Navigation Assistant Context Engine';
+  const provenance = input.provenance || input.operationalState?.sourceProvenance || 'Phase 16A Navigation Assistant Context Engine';
 
   const sectionModes: ContextDataMode[] = [];
 
@@ -382,23 +385,24 @@ export function buildNavigationAssistantContext(
   sectionModes.push(acqMode);
 
   let highestProd = null;
-  if (acq && acq.rankedProducts && acq.rankedProducts.length > 0) {
-    const top = acq.rankedProducts[0];
+  const candList = acq?.rankedCandidates || (acq as any)?.rankedProducts || [];
+  if (candList.length > 0) {
+    const top = candList[0];
     highestProd = {
-      id: top.product.id,
-      sensor: top.product.sensor,
-      priority: top.priority,
-      engineeringScore: top.engineeringScore,
-      affectedDecision: top.affectedDecision,
-      expectedUncertaintyReductionPct: top.product.expectedUncertaintyReductionPct,
-      bandwidthFit: top.withinBandwidthBudget,
+      id: top.productId || top.product?.id || 'SAT-PRODUCT',
+      sensor: top.sensor || top.product?.sensor || 'SAR',
+      priority: top.priority || 'HIGH',
+      engineeringScore: top.engineeringPriorityIndex ?? top.engineeringScore ?? 80,
+      affectedDecision: top.affectedDecision || 'Route Corridor Risk Assessment',
+      expectedUncertaintyReductionPct: top.expectedUncertaintyReductionPct ?? top.product?.expectedUncertaintyReductionPct ?? 15,
+      bandwidthFit: top.withinBandwidthBudget ?? true,
     };
   }
 
   const dataAcquisitionContext: DataAcquisitionContext = {
-    totalAvailableProductsCount: acq?.rankedProducts?.length || 0,
+    totalAvailableProductsCount: candList.length,
     highestPriorityProduct: highestProd,
-    acquisitionSummaryText: acq?.summaryRationale || (acq ? 'Satellite products evaluated for decision impact' : 'Acquisition priorities unavailable'),
+    acquisitionSummaryText: acq?.explanation || (acq as any)?.summaryRationale || (acq ? 'Satellite products evaluated for decision impact' : 'Acquisition priorities unavailable'),
     dataMode: acqMode,
   };
 
@@ -406,11 +410,16 @@ export function buildNavigationAssistantContext(
   const reass = input.reassessment;
   const reassMode: ContextDataMode = reass ? inputDataMode : 'UNAVAILABLE';
   sectionModes.push(reassMode);
+  const reassStatus = (reass?.reassessmentStatus || (reass as any)?.recommendationStatus || 'UNAVAILABLE') as ReassessmentStatus | 'UNAVAILABLE';
+  const primaryTrig = reass?.triggerReasons?.[0] || (reass as any)?.primaryTrigger || (reass ? 'Routine monitoring' : 'Reassessment engine unavailable');
+  const summaryExp = reass?.explanation || (reass as any)?.summaryExplanation || 'Decision reassessment status unavailable.';
+  const requiresReview = reass ? (reass.reassessmentStatus === 'REASSESS' || reass.reassessmentStatus === 'RECOMMEND_REVIEW' || (reass as any).requiresNavigatorReview === true) : false;
+
   const reassessmentContext: ReassessmentContext = {
-    recommendationStatus: reass?.recommendationStatus || 'UNAVAILABLE',
-    primaryTrigger: reass?.primaryTrigger || (reass ? 'Routine monitoring' : 'Reassessment engine unavailable'),
-    summaryExplanation: reass?.summaryExplanation || 'Decision reassessment status unavailable.',
-    requiresNavigatorReview: reass?.requiresNavigatorReview ?? false,
+    recommendationStatus: reassStatus,
+    primaryTrigger: primaryTrig,
+    summaryExplanation: summaryExp,
+    requiresNavigatorReview: requiresReview,
     dataMode: reassMode,
   };
 
@@ -471,7 +480,9 @@ export function buildNavigationAssistantContext(
       ? `Current route '${r.name}' is recommended for navigator review with distance ${r.distanceNm} nm, ETA ${r.etaHours}h, and risk index ${r.riskIndex}/100 (${r.recommendationRationale}).`
       : 'No active route recommendation is available.',
 
-    majorHazardsAffectingRoute: hazardSummaries.length > 0
+    majorHazardsAffectingRoute: hazardMode === 'UNAVAILABLE'
+      ? 'Environmental hazard telemetry is UNAVAILABLE. Absence of current observations does not guarantee absence of hazards.'
+      : hazardSummaries.length > 0
       ? `Identified ${hazardsList.length} major hazards affecting transit (${critHazards} critical, ${highHazards} high). ${hazardSummaries.join('; ')}.`
       : 'No major hazards reported along the transit corridor.',
 
@@ -492,7 +503,7 @@ export function buildNavigationAssistantContext(
       : 'Route resilience evaluation is unavailable.',
 
     monitoringOrReassessmentRecommendation: reass
-      ? `System status is ${reass.recommendationStatus} due to ${reass.primaryTrigger}. ${reass.summaryExplanation} ${reass.requiresNavigatorReview ? 'Navigator review recommended.' : 'Routine monitoring advised.'}`
+      ? `System status is ${reassStatus} due to ${primaryTrig}. ${summaryExp} ${requiresReview ? 'Navigator review recommended.' : 'Routine monitoring advised.'}`
       : 'Decision reassessment status is unavailable.',
 
     limitationsNavigatorShouldKnow:

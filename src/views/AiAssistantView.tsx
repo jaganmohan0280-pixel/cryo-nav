@@ -32,6 +32,7 @@ export const AiAssistantView: React.FC = () => {
     decisionConfidence,
     environmentalMode,
     gpsTracking,
+    navigationOperationalState,
   } = useApp();
 
   const [llmResult, setLlmResult] = useState<LlmExplanationResult | null>(null);
@@ -146,7 +147,8 @@ export const AiAssistantView: React.FC = () => {
       alerts: alertsResult,
       connectionState,
       dataMode,
-      provenance: `CRYO NAV Structured Context Engine (${dataMode})`,
+      provenance: navigationOperationalState?.sourceProvenance || `CRYO NAV Structured Context Engine (${dataMode})`,
+      operationalState: navigationOperationalState,
     });
   }, [
     mission,
@@ -163,6 +165,7 @@ export const AiAssistantView: React.FC = () => {
     alertsResult,
     connectionState,
     environmentalMode,
+    navigationOperationalState,
   ]);
 
   const handleAskQuery = async (query: string): Promise<LlmExplanationResult | null> => {
@@ -194,7 +197,7 @@ export const AiAssistantView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 p-6 bg-slate-950 overflow-y-auto min-h-screen text-slate-100 space-y-6">
+    <div className="flex-1 p-6 bg-[#F5F7F7] overflow-y-auto min-h-screen text-[#18343A] space-y-6 font-sans">
       <NavigationAssistantPanel
         contextResult={assistantContextResult}
         onAskQuery={handleAskQuery}

@@ -345,6 +345,9 @@ export interface OceanCurrentCell {
 
 export interface RouteAlternative {
   id: 'safest' | 'balanced' | 'fastest';
+  routeId?: string;
+  labels?: ('SAFEST' | 'BALANCED' | 'FASTEST')[];
+  geometryHash?: string;
   name: string;
   type: 'SAFE' | 'BALANCED' | 'FAST';
   color: string;

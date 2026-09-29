@@ -73,6 +73,9 @@ export function getDeterministicFallbackAnswer(
   const q = userQuery.toLowerCase();
   const answers = contextResult.structuredAnswers;
 
+  if (q.includes('why') || q.includes('recommended over') || q.includes('why is this route')) {
+    return answers.whyCurrentRouteRecommended;
+  }
   if (q.includes('hazard') || q.includes('affect my route') || q.includes('iceberg')) {
     return answers.majorHazardsAffectingRoute;
   }
@@ -88,7 +91,7 @@ export function getDeterministicFallbackAnswer(
   if (q.includes('resilient') || q.includes('resilience') || q.includes('sensitivity')) {
     return answers.routeResilienceOrSensitivity;
   }
-  if (q.includes('reassessment') || q.includes('recommend')) {
+  if (q.includes('reassessment')) {
     return answers.monitoringOrReassessmentRecommendation;
   }
   if (q.includes('limitation') || q.includes('know')) {
@@ -174,24 +177,15 @@ export async function generateLlmNavigationExplanation(
   const systemInstruction = buildSystemInstruction(contextResult);
   const userPrompt = `USER INQUIRY: ${userQuery}\n\nPlease explain the answer based strictly on the supplied structured navigation context.`;
 
-  // 4. Execute LLM call or Mock Generator
+  // 4. Execute LLM call, Direct Key, Server Proxy, or Mock Generator
   try {
     let rawReply = '';
 
     if (mockGenerator) {
       rawReply = await mockGenerator(`${systemInstruction}\n\n${userPrompt}`);
-    } else {
-      const activeApiKey =
-        apiKey ||
-        (typeof process !== 'undefined'
-          ? process.env?.GEMINI_API_KEY || process.env?.VITE_GEMINI_API_KEY
-          : '');
-
-      if (!activeApiKey) {
-        throw new Error('MISSING_API_KEY');
-      }
-
-      const ai = new GoogleGenAI({ apiKey: activeApiKey });
+    } else if (apiKey) {
+      // Direct API key provided explicitly (e.g. standalone Node server script / test execution)
+      const ai = new GoogleGenAI({ apiKey });
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs)
       );
@@ -204,6 +198,40 @@ export async function generateLlmNavigationExplanation(
         .then((res) => res.text || '');
 
       rawReply = await Promise.race([generatePromise, timeoutPromise]);
+    } else {
+      // Secure Browser Server Proxy execution path:
+      // Browser client delegates to CRYO NAV server endpoint /api/gemini/assistant.
+      // The server holds process.env.GEMINI_API_KEY. No secret is embedded in client bundle.
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+
+      try {
+        const res = await fetch('/api/gemini/assistant', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            question: userQuery,
+            context: contextResult,
+            systemInstruction,
+          }),
+          signal: controller?.signal,
+        });
+
+        if (timeoutId) clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          throw new Error(`SERVER_ERROR_${res.status}`);
+        }
+
+        const data = await res.json();
+        rawReply = data?.response || data?.reply || '';
+      } catch (fetchErr: any) {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (fetchErr.name === 'AbortError') {
+          throw new Error('TIMEOUT');
+        }
+        throw fetchErr;
+      }
     }
 
     if (!rawReply || typeof rawReply !== 'string') {

@@ -239,7 +239,10 @@ function runModelValidationTests() {
   // ---------------------------------------------------------------------------------------
   const rA = evaluateModelValidationBatch(batchPreds, batchObs, 'SEA_ICE');
   const rB = evaluateModelValidationBatch(batchPreds, batchObs, 'SEA_ICE');
-  assert(JSON.stringify(rA) === JSON.stringify(rB), '100% deterministic output across multiple batch evaluations');
+  assert(
+    JSON.stringify({ ...rA, evaluationTimestamp: '' }) === JSON.stringify({ ...rB, evaluationTimestamp: '' }),
+    '100% deterministic output across multiple batch evaluations'
+  );
 
   // ---------------------------------------------------------------------------------------
   // Test 23 & 24 & 25 & 26: Immutability, No External APIs, No Replanning, No Retraining
