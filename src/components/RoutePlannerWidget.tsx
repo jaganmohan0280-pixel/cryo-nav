@@ -85,9 +85,47 @@ export const RoutePlannerWidget: React.FC<Props> = ({ compact = false, onRoutesC
     }
   };
 
+  const handleApplyPreset = (sourceId: string, destId: string) => {
+    setSelectedSourceId(sourceId);
+    setSelectedDestId(destId);
+    
+    const srcSt = AUTHORITATIVE_RESEARCH_STATIONS.find((s) => s.id === sourceId);
+    const dstSt = AUTHORITATIVE_RESEARCH_STATIONS.find((s) => s.id === destId);
+    if (!srcSt || !dstSt) return;
+
+    setMission({
+      ...mission,
+      startLocation: {
+        name: `${srcSt.name} (${srcSt.country})`,
+        lat: srcSt.lat,
+        lon: srcSt.lon,
+      },
+      destination: {
+        name: `${dstSt.name} (${dstSt.country})`,
+        lat: dstSt.lat,
+        lon: dstSt.lon,
+      },
+    });
+
+    addAlert({
+      severity: 'INFO',
+      type: 'ROUTE_DEVIATION',
+      title: 'Regional Preset Loaded',
+      message: `Voyage preset applied: ${srcSt.name} → ${dstSt.name}. Multi-objective ocean routes re-calculated.`,
+    });
+
+    setCalculatedSuccess(true);
+    setIsModifiedSinceCalc(false);
+    setTimeout(() => setCalculatedSuccess(false), 3000);
+
+    if (onRoutesCalculated) {
+      onRoutesCalculated();
+    }
+  };
+
   return (
     <div className={`bg-white rounded-[12px] border border-[#DCE7E7] font-sans shadow-subtle ${compact ? 'p-3.5 text-xs' : 'p-5 text-xs'}`}>
-      <div className="flex items-center justify-between border-b border-[#DCE7E7] pb-3 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#DCE7E7] pb-3 mb-4 gap-2">
         <div className="flex items-center gap-2.5">
           <Navigation className="w-4 h-4 text-[#2BB9BD]" />
           <span className="font-bold text-[#075563] tracking-tight text-xs sm:text-sm">
@@ -97,6 +135,50 @@ export const RoutePlannerWidget: React.FC<Props> = ({ compact = false, onRoutesC
         <span className="text-[11px] px-2.5 py-0.5 rounded-[6px] bg-[#E8F8F6] text-[#075563] border border-[#DCE7E7] font-semibold">
           Authoritative Station Dataset
         </span>
+      </div>
+
+      {/* REGIONAL DEMO PRESETS */}
+      <div className="mb-4 bg-[#F5F7F7] p-2.5 rounded-[10px] border border-[#DCE7E7]">
+        <div className="text-[11px] font-bold text-[#075563] mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+          <Compass className="w-3 h-3 text-[#2BB9BD]" /> Quick Regional Demo Presets
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => handleApplyPreset('st-maitri', 'st-bharati')}
+            className="px-2.5 py-1 bg-white hover:bg-[#D8F3F1] text-[#075563] font-bold border border-[#2BB9BD]/50 rounded-[6px] transition text-[11px] flex items-center gap-1 shadow-2xs cursor-pointer"
+          >
+            ★ East Antarctica: Maitri → Bharati
+          </button>
+          <button
+            type="button"
+            onClick={() => handleApplyPreset('st-rothera', 'st-bharati')}
+            className="px-2.5 py-1 bg-white hover:bg-[#E8F8F6] text-[#18343A] font-semibold border border-[#DCE7E7] rounded-[6px] transition text-[11px] flex items-center gap-1 cursor-pointer"
+          >
+            Trans-Antarctic: Rothera → Bharati
+          </button>
+          <button
+            type="button"
+            onClick={() => handleApplyPreset('st-rothera', 'st-neumayer')}
+            className="px-2.5 py-1 bg-white hover:bg-[#E8F8F6] text-[#18343A] font-semibold border border-[#DCE7E7] rounded-[6px] transition text-[11px] flex items-center gap-1 cursor-pointer"
+          >
+            Weddell Sea: Rothera → Neumayer
+          </button>
+          <button
+            type="button"
+            onClick={() => handleApplyPreset('st-bharati', 'st-mawson')}
+            className="px-2.5 py-1 bg-white hover:bg-[#E8F8F6] text-[#18343A] font-semibold border border-[#DCE7E7] rounded-[6px] transition text-[11px] flex items-center gap-1 cursor-pointer"
+          >
+            East Coast: Bharati → Mawson
+          </button>
+          <button
+            type="button"
+            onClick={() => handleApplyPreset('st-casey', 'st-mcmurdo')}
+            className="px-2.5 py-1 bg-white hover:bg-[#E8F8F6] text-[#18343A] font-semibold border border-[#DCE7E7] rounded-[6px] transition text-[11px] flex items-center gap-1 cursor-pointer"
+          >
+            Ross Sea: Casey → McMurdo
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleRunRouting} className="space-y-4">

@@ -83,32 +83,30 @@ const MAIN_CONTINENT_LAND: PolygonRing = {
   name: 'Antarctic Continental Landmass & Interior Plateau',
   type: 'LAND',
   coordinates: [
-    [-66.0, -60.0],
-    [-70.0, -40.0],
-    [-72.0, -10.0],
-    [-69.0, 10.0],
-    [-67.0, 30.0],
-    [-66.0, 60.0],
-    [-65.5, 90.0],
-    [-65.0, 120.0],
-    [-65.5, 140.0],
-    [-66.0, 160.0],
-    [-71.0, 170.0],
+    [-71.5, -60.0],
+    [-74.0, -40.0],
+    [-75.0, -10.0],
+    [-71.5, 10.0],
+    [-71.0, 30.0],
+    [-69.5, 60.0],
+    [-70.5, 75.0],
+    [-69.5, 90.0],
+    [-68.5, 120.0],
+    [-68.0, 140.0],
+    [-71.0, 160.0],
     [-73.0, 169.0],
     [-76.0, 164.0],
-    [-78.0, 164.0],
     [-78.5, 162.0],
     [-85.0, 160.0],
     [-90.0, 0.0],   // Geographic South Pole
     [-85.0, -120.0],
-    [-75.0, -130.0],
-    [-73.0, -110.0],
-    [-72.0, -90.0],
+    [-76.0, -130.0],
+    [-74.5, -110.0],
+    [-73.5, -90.0],
     [-74.0, -76.0],
     [-75.0, -70.0],
     [-74.0, -65.0],
-    [-70.0, -60.0],
-    [-66.0, -60.0],
+    [-71.5, -60.0],
   ],
 };
 
@@ -276,6 +274,33 @@ export function segmentIntersectsPolygon(
 }
 
 /**
+ * Authoritative Northern Boundary Latitude of Continental Antarctic Land & Ice Shelves
+ * Returns the northernmost latitude at which continental land/ice shelf begins for a given longitude.
+ */
+export function getAntarcticCoastalLatitude(lon: number): number {
+  let normalizedLon = lon;
+  while (normalizedLon > 180) normalizedLon -= 360;
+  while (normalizedLon < -180) normalizedLon += 360;
+
+  if (normalizedLon >= -75 && normalizedLon < -66) return -69.5; // Bellingshausen Sea / Marguerite Bay (West of Peninsula)
+  if (normalizedLon >= -66 && normalizedLon < -60) return -63.2; // Antarctic Peninsula Land Spine (Graham Land)
+  if (normalizedLon >= -60 && normalizedLon < -55) return -62.0; // South Shetland / Hope Bay sector
+  if (normalizedLon >= -55 && normalizedLon < -30) return -74.5; // Ronne-Filchner Ice Shelf / Weddell Sea
+  if (normalizedLon >= -30 && normalizedLon < 0) return -69.8;   // Dronning Maud Land West (Atka Bay / Neumayer)
+  if (normalizedLon >= 0 && normalizedLon < 35) return -69.5;    // Schirmacher / Maitri sector
+  if (normalizedLon >= 35 && normalizedLon < 60) return -66.2;   // Enderby Land
+  if (normalizedLon >= 60 && normalizedLon < 75) return -67.0;   // Mac. Robertson Land (Mawson)
+  if (normalizedLon >= 75 && normalizedLon < 90) return -68.5;   // Larsemann / Vestfold Hills (Bharati / Davis)
+  if (normalizedLon >= 90 && normalizedLon < 135) return -65.5;  // Vincennes Bay (Casey)
+  if (normalizedLon >= 135 && normalizedLon < 160) return -64.5; // Adélie Coast (Dumont d'Urville)
+  if (normalizedLon >= 160 || normalizedLon < -155) return -77.8;// Ross Sea Sector (Open water down to McMurdo)
+  if (normalizedLon >= -155 && normalizedLon < -100) return -71.5;// Amundsen Sea coast
+  if (normalizedLon >= -100 && normalizedLon < -75) return -69.5; // Bellingshausen Sea coast
+
+  return -65.0;
+}
+
+/**
  * Classifies any coordinate as WATER, LAND, ICE_SHELF, or UNKNOWN
  */
 export function classifyGeographicLocation(lat: number, lon: number): GeographicCellType {
@@ -284,15 +309,15 @@ export function classifyGeographicLocation(lat: number, lon: number): Geographic
     return 'UNKNOWN';
   }
 
-  // Check South Pole & High Plateau explicit land rule
-  if (lat < -80.0) {
-    if (lat < -85.0 || (lon >= -120 && lon <= 160 && lat < -81.0)) {
+  // Check explicit South Pole & High Plateau explicit land rule
+  if (lat <= -80.0) {
+    if (lat <= -85.0 || (lon >= -120 && lon <= 160 && lat <= -81.0)) {
       return 'LAND';
     }
   }
 
   // Check explicit Ice Shelf boundaries
-  if (lat <= -77.5 && lat >= -85.0 && (lon >= 160.0 || lon <= -150.0)) {
+  if (lat <= -77.8 && lat >= -85.0 && (lon >= 160.0 || lon <= -150.0)) {
     return 'ICE_SHELF';
   }
   if (lat <= -74.5 && lat >= -83.0 && lon >= -80.0 && lon <= -30.0) {
@@ -309,7 +334,13 @@ export function classifyGeographicLocation(lat: number, lon: number): Geographic
     }
   }
 
-  // If outside prohibited land & ice shelf polygons and within global ocean latitudes, it is valid navigable WATER
+  // Enforce coastal land boundary: any coordinate south of coastline latitude is continental LAND
+  const coastalLat = getAntarcticCoastalLatitude(lon);
+  if (lat < coastalLat) {
+    return 'LAND';
+  }
+
+  // If outside prohibited land & ice shelf polygons and within ocean latitudes, it is valid navigable WATER
   if (lat <= 0.0 && lat >= -85.0) {
     return 'WATER';
   }
@@ -324,26 +355,21 @@ export function segmentIntersectsProhibitedGeography(
   p1: [number, number],
   p2: [number, number]
 ): { intersects: boolean; polygonName?: string; type?: 'LAND' | 'ICE_SHELF' } {
-  // Direct point checks
-  const c1 = classifyGeographicLocation(p1[0], p1[1]);
-  const c2 = classifyGeographicLocation(p2[0], p2[1]);
+  const dist = calculateDistanceNm(p1[0], p1[1], p2[0], p2[1]);
+  const samples = Math.max(8, Math.ceil(dist / 10));
 
-  if (c1 === 'LAND' || c2 === 'LAND') {
-    return { intersects: true, polygonName: 'Antarctic Continental Landmass', type: 'LAND' };
-  }
-  if (c1 === 'ICE_SHELF' || c2 === 'ICE_SHELF') {
-    return { intersects: true, polygonName: 'Antarctic Ice Shelf', type: 'ICE_SHELF' };
-  }
+  for (let s = 0; s <= samples; s++) {
+    const frac = s / samples;
+    const sampleLat = p1[0] + (p2[0] - p1[0]) * frac;
+    const sampleLon = p1[1] + (p2[1] - p1[1]) * frac;
 
-  // Midpoint check
-  const midLat = (p1[0] + p2[0]) / 2;
-  const midLon = (p1[1] + p2[1]) / 2;
-  const cMid = classifyGeographicLocation(midLat, midLon);
-  if (cMid === 'LAND') {
-    return { intersects: true, polygonName: 'Antarctic Continental Landmass', type: 'LAND' };
-  }
-  if (cMid === 'ICE_SHELF') {
-    return { intersects: true, polygonName: 'Antarctic Ice Shelf', type: 'ICE_SHELF' };
+    const cls = classifyGeographicLocation(sampleLat, sampleLon);
+    if (cls === 'LAND') {
+      return { intersects: true, polygonName: 'Antarctic Continental Landmass', type: 'LAND' };
+    }
+    if (cls === 'ICE_SHELF') {
+      return { intersects: true, polygonName: 'Antarctic Ice Shelf', type: 'ICE_SHELF' };
+    }
   }
 
   for (const poly of ALL_PROHIBITED_POLYGONS) {

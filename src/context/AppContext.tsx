@@ -4,7 +4,7 @@
  * Decision Impact Engine, and environmental state.
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   VesselProfile,
   MissionConfig,
@@ -126,8 +126,12 @@ interface AppContextType {
   resetSimulationScenario: () => void;
   gpsTracking: GPSTrackingState;
   startGpsSimulation: () => void;
+  fastDemoGpsSimulation: () => void;
   pauseGpsSimulation: () => void;
   resetGpsSimulation: () => void;
+  setSimulationSpeedMultiplier: (multiplier: number) => void;
+  toggleFollowVessel: (enable?: boolean) => void;
+  focusVessel: () => void;
   alerts: Alert[];
   acknowledgeAlert: (id: string) => void;
   dismissAlert: (id: string) => void;
@@ -701,6 +705,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [evaluatedIcebergs, routes, selectedRouteId, recommendedRoute, selectedVessel]);
 
   // GPS Tracking Simulation State
+  const activeRouteForGps = useMemo(() => {
+    return routes.find((r) => r.id === selectedRouteId) || routes.find((r) => r.isRecommended) || routes[0];
+  }, [routes, selectedRouteId]);
+
   const [gpsTracking, setGpsTracking] = useState<GPSTrackingState>({
     currentLat: DEFAULT_MISSION.startLocation.lat,
     currentLon: DEFAULT_MISSION.startLocation.lon,
@@ -710,61 +718,118 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     actualTrack: [[DEFAULT_MISSION.startLocation.lat, DEFAULT_MISSION.startLocation.lon]],
     distanceTraveledNm: 0,
     distanceRemainingNm: 480,
-    crossTrackErrorNm: 0.1,
+    crossTrackErrorNm: 0.04,
     isSimulating: false,
-    simulationSpeedMultiplier: 10,
+    simulationSpeedMultiplier: 25,
+    etaHours: 35.0,
+    statusLabel: 'AT ORIGIN',
+    followVessel: true,
   });
 
   const gpsTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // GPS Simulation Step
+  // Auto-align GPS position when active route changes
+  useEffect(() => {
+    if (!activeRouteForGps || activeRouteForGps.waypoints.length < 2) return;
+
+    const startWp = activeRouteForGps.waypoints[0];
+    const totalDist = activeRouteForGps.distanceNm;
+
+    setGpsTracking((prev) => {
+      // If idle / at origin, snap to start of new active route
+      if (!prev.isSimulating && prev.routeProgressPct <= 0.5) {
+        return {
+          ...prev,
+          currentLat: startWp[0],
+          currentLon: startWp[1],
+          distanceRemainingNm: Math.round(totalDist),
+          etaHours: Number((totalDist / Math.max(1, prev.speedKnots)).toFixed(1)),
+          actualTrack: [[startWp[0], startWp[1]]],
+          statusLabel: 'AT ORIGIN',
+        };
+      }
+      return prev;
+    });
+  }, [activeRouteForGps]);
+
+  // GPS Simulation Loop (100ms tick interval for ultra-fluid, fast demo playback)
   useEffect(() => {
     if (!gpsTracking.isSimulating) {
       if (gpsTimerRef.current) clearInterval(gpsTimerRef.current);
       return;
     }
 
-    const activeRoute = routes.find((r) => r.isRecommended) || routes[0];
-    if (!activeRoute || activeRoute.waypoints.length < 2) return;
+    if (!activeRouteForGps || activeRouteForGps.waypoints.length < 2) return;
 
     gpsTimerRef.current = setInterval(() => {
       setGpsTracking((prev) => {
-        const nextProgress = Math.min(100, prev.routeProgressPct + 0.5 * (prev.simulationSpeedMultiplier / 10));
-        const totalDistance = activeRoute.distanceNm;
-        const traveled = (nextProgress / 100) * totalDistance;
-        const remaining = Math.max(0, totalDistance - traveled);
+        const wps = activeRouteForGps.waypoints;
+        const totalDistance = activeRouteForGps.distanceNm || 1.0;
+        const vesselSpeed = selectedVessel?.cruisingSpeedKnots || prev.speedKnots || 11.5;
 
-        // Interpolate position along route waypoints
-        const wps = activeRoute.waypoints;
-        const segFrac = (nextProgress / 100) * (wps.length - 1);
-        const curIdx = Math.min(wps.length - 2, Math.floor(segFrac));
-        const subFrac = segFrac - curIdx;
+        // Calculate progress increment per 100ms step (accelerated demo scale)
+        const multiplier = prev.simulationSpeedMultiplier || 25;
+        const stepDistNm = (vesselSpeed * multiplier * 0.1 * 40) / 3600;
+        const nextTraveledNm = Math.min(totalDistance, prev.distanceTraveledNm + stepDistNm);
+        const nextProgressPct = Math.min(100, (nextTraveledNm / totalDistance) * 100);
+        const remainingNm = Math.max(0, totalDistance - nextTraveledNm);
+        const etaHours = Number((remainingNm / Math.max(1, vesselSpeed)).toFixed(1));
 
-        const p1 = wps[curIdx];
-        const p2 = wps[curIdx + 1];
+        // Interpolate along waypoints based on cumulative distance
+        let accumulated = 0;
+        let p1 = wps[0];
+        let p2 = wps[1];
+        let subFrac = 0;
+
+        for (let i = 0; i < wps.length - 1; i++) {
+          const d = calculateDistanceNm(wps[i][0], wps[i][1], wps[i + 1][0], wps[i + 1][1]);
+          if (accumulated + d >= nextTraveledNm || i === wps.length - 2) {
+            p1 = wps[i];
+            p2 = wps[i + 1];
+            const span = d > 0 ? d : 1.0;
+            subFrac = Math.min(1.0, Math.max(0, (nextTraveledNm - accumulated) / span));
+            break;
+          }
+          accumulated += d;
+        }
+
         const newLat = p1[0] + (p2[0] - p1[0]) * subFrac;
         const newLon = p1[1] + (p2[1] - p1[1]) * subFrac;
 
-        // Calculate segment heading
+        // Calculate target bearing between current segment waypoints p1 and p2
         const dLon = ((p2[1] - p1[1]) * Math.PI) / 180;
         const y = Math.sin(dLon) * Math.cos((p2[0] * Math.PI) / 180);
         const x =
           Math.cos((p1[0] * Math.PI) / 180) * Math.sin((p2[0] * Math.PI) / 180) -
           Math.sin((p1[0] * Math.PI) / 180) * Math.cos((p2[0] * Math.PI) / 180) * Math.cos(dLon);
-        const headingDeg = Math.round(((Math.atan2(y, x) * 180) / Math.PI + 360) % 360);
+        const rawTargetHeading = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+
+        // Shortest-angle smooth heading rotation interpolation
+        let prevH = prev.headingDeg || Math.round(rawTargetHeading);
+        let headingDiff = ((rawTargetHeading - prevH + 540) % 360) - 180;
+        let headingDeg = Math.round((prevH + headingDiff * 0.35 + 360) % 360);
+
+        // Cross-track error (simulated minor noise)
+        const xte = Number((0.02 + Math.abs(Math.sin(nextProgressPct * 0.1)) * 0.05).toFixed(2));
 
         const newTrack = [...prev.actualTrack, [newLat, newLon] as [number, number]];
 
-        // If vessel gets near destination, stop
-        if (nextProgress >= 100) {
+        // If vessel reaches destination, stop cleanly
+        if (nextProgressPct >= 100 || remainingNm <= 0.05) {
+          const lastWp = wps[wps.length - 1];
           return {
             ...prev,
-            currentLat: p2[0],
-            currentLon: p2[1],
+            currentLat: lastWp[0],
+            currentLon: lastWp[1],
+            headingDeg: Math.round(rawTargetHeading),
             routeProgressPct: 100,
-            distanceTraveledNm: totalDistance,
+            distanceTraveledNm: Math.round(totalDistance),
             distanceRemainingNm: 0,
+            etaHours: 0,
             isSimulating: false,
+            statusLabel: 'ARRIVED',
+            crossTrackErrorNm: 0.0,
+            actualTrack: newTrack.slice(-500),
           };
         }
 
@@ -773,37 +838,59 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           currentLat: Number(newLat.toFixed(4)),
           currentLon: Number(newLon.toFixed(4)),
           headingDeg,
-          routeProgressPct: Number(nextProgress.toFixed(1)),
-          distanceTraveledNm: Math.round(traveled),
-          distanceRemainingNm: Math.round(remaining),
-          actualTrack: newTrack.slice(-120), // keep recent 120 points
+          speedKnots: vesselSpeed,
+          routeProgressPct: Number(nextProgressPct.toFixed(1)),
+          distanceTraveledNm: Number(nextTraveledNm.toFixed(1)),
+          distanceRemainingNm: Number(remainingNm.toFixed(1)),
+          etaHours,
+          statusLabel: 'UNDERWAY',
+          crossTrackErrorNm: xte,
+          actualTrack: newTrack.slice(-500),
         };
       });
-    }, 1000);
+    }, 100);
 
     return () => {
       if (gpsTimerRef.current) clearInterval(gpsTimerRef.current);
     };
-  }, [gpsTracking.isSimulating, gpsTracking.simulationSpeedMultiplier, routes]);
+  }, [gpsTracking.isSimulating, gpsTracking.simulationSpeedMultiplier, activeRouteForGps, selectedVessel]);
 
-  const startGpsSimulation = () => setGpsTracking((p) => ({ ...p, isSimulating: true }));
-  const pauseGpsSimulation = () => setGpsTracking((p) => ({ ...p, isSimulating: false }));
+  const startGpsSimulation = () => setGpsTracking((p) => ({ ...p, isSimulating: true, statusLabel: 'UNDERWAY' }));
+  const fastDemoGpsSimulation = () =>
+    setGpsTracking((p) => ({ ...p, isSimulating: true, simulationSpeedMultiplier: 50, statusLabel: 'UNDERWAY' }));
+  const pauseGpsSimulation = () => setGpsTracking((p) => ({ ...p, isSimulating: false, statusLabel: 'PAUSED' }));
   const resetGpsSimulation = () => {
-    const activeRoute = routes.find((r) => r.isRecommended) || routes[0];
-    const startWp = activeRoute ? activeRoute.waypoints[0] : [DEFAULT_MISSION.startLocation.lat, DEFAULT_MISSION.startLocation.lon];
+    const startWp = activeRouteForGps ? activeRouteForGps.waypoints[0] : [DEFAULT_MISSION.startLocation.lat, DEFAULT_MISSION.startLocation.lon];
+    const totalDist = activeRouteForGps?.distanceNm || 480;
+    const speed = selectedVessel.cruisingSpeedKnots;
     setGpsTracking({
       currentLat: startWp[0],
       currentLon: startWp[1],
       headingDeg: 195,
-      speedKnots: selectedVessel.cruisingSpeedKnots,
+      speedKnots: speed,
       routeProgressPct: 0,
       actualTrack: [[startWp[0], startWp[1]]],
       distanceTraveledNm: 0,
-      distanceRemainingNm: activeRoute?.distanceNm || 480,
-      crossTrackErrorNm: 0.1,
+      distanceRemainingNm: totalDist,
+      crossTrackErrorNm: 0.04,
       isSimulating: false,
-      simulationSpeedMultiplier: 10,
+      simulationSpeedMultiplier: 5,
+      etaHours: Number((totalDist / Math.max(1, speed)).toFixed(1)),
+      statusLabel: 'AT ORIGIN',
+      followVessel: true,
     });
+  };
+
+  const setSimulationSpeedMultiplier = (multiplier: number) => {
+    setGpsTracking((prev) => ({ ...prev, simulationSpeedMultiplier: multiplier }));
+  };
+
+  const toggleFollowVessel = (enable?: boolean) => {
+    setGpsTracking((prev) => ({ ...prev, followVessel: enable !== undefined ? enable : !prev.followVessel }));
+  };
+
+  const focusVessel = () => {
+    setGpsTracking((prev) => ({ ...prev, followVessel: true }));
   };
 
   const toggleMapLayer = (layer: keyof MapLayerToggles) => {
@@ -1375,8 +1462,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         resetSimulationScenario,
         gpsTracking,
         startGpsSimulation,
+        fastDemoGpsSimulation,
         pauseGpsSimulation,
         resetGpsSimulation,
+        setSimulationSpeedMultiplier,
+        toggleFollowVessel,
+        focusVessel,
         alerts,
         acknowledgeAlert,
         dismissAlert,

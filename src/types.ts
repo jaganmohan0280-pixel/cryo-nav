@@ -438,6 +438,9 @@ export interface GPSTrackingState {
   crossTrackErrorNm: number;
   isSimulating: boolean;
   simulationSpeedMultiplier: number;
+  etaHours?: number;
+  statusLabel?: 'UNDERWAY' | 'PAUSED' | 'AT ORIGIN' | 'ARRIVED' | 'IDLE';
+  followVessel?: boolean;
 }
 
 export interface SimulationScenario {

@@ -297,50 +297,236 @@ export const INITIAL_ICEBERGS: IcebergDetection[] = [
       { horizon: '+72h', hours: 72, lat: -65.80, lon: -64.77, uncertaintyRadiusNm: 14.5, timestamp: '2026-09-09T07:45:00Z', confidence: 22 },
     ],
   },
+  {
+    id: 'ICB-BHARATI-01',
+    name: 'ICB-B101 Larsemann Hills Tabular Berg',
+    lat: -68.80,
+    lon: 76.50,
+    sizeCategory: 'Giant Calved Tabular',
+    estimatedLengthMeters: 4800,
+    estimatedWidthMeters: 2200,
+    freeboardMeters: 34,
+    driftSpeedKnots: 1.2,
+    driftHeadingDeg: 280,
+    observationTime: '2026-09-06T06:15:00Z',
+    processingTime: '2026-09-06T06:40:00Z',
+    confidence: 93,
+    uncertaintyRadiusNm: 0.9,
+    source: 'Sentinel-1 SAR',
+    isSynthetic: true,
+    historicalTrack: [
+      { lat: -68.90, lon: 77.10, timestamp: '2026-09-05T06:00:00Z' },
+      { lat: -68.86, lon: 76.85, timestamp: '2026-09-05T18:00:00Z' },
+      { lat: -68.80, lon: 76.50, timestamp: '2026-09-06T06:15:00Z' },
+    ],
+    predictedTrajectory: [
+      { horizon: '+6h', hours: 6, lat: -68.76, lon: 76.25, uncertaintyRadiusNm: 1.3, timestamp: '2026-09-06T12:15:00Z', confidence: 90 },
+      { horizon: '+12h', hours: 12, lat: -68.72, lon: 76.00, uncertaintyRadiusNm: 2.0, timestamp: '2026-09-06T18:15:00Z', confidence: 85 },
+      { horizon: '+24h', hours: 24, lat: -68.64, lon: 75.50, uncertaintyRadiusNm: 3.5, timestamp: '2026-09-07T06:15:00Z', confidence: 77 },
+      { horizon: '+48h', hours: 48, lat: -68.48, lon: 74.50, uncertaintyRadiusNm: 6.0, timestamp: '2026-09-08T06:15:00Z', confidence: 63 },
+      { horizon: '+72h', hours: 72, lat: -68.30, lon: 73.50, uncertaintyRadiusNm: 9.0, timestamp: '2026-09-09T06:15:00Z', confidence: 50 },
+    ],
+  },
+  {
+    id: 'ICB-MAITRI-02',
+    name: 'ICB-M202 Schirmacher Coastal Iceberg',
+    lat: -69.80,
+    lon: 12.10,
+    sizeCategory: 'Large',
+    estimatedLengthMeters: 2900,
+    estimatedWidthMeters: 1300,
+    freeboardMeters: 28,
+    driftSpeedKnots: 1.0,
+    driftHeadingDeg: 265,
+    observationTime: '2026-09-06T05:30:00Z',
+    processingTime: '2026-09-06T06:00:00Z',
+    confidence: 88,
+    uncertaintyRadiusNm: 1.1,
+    source: 'Sentinel-1 SAR',
+    isSynthetic: true,
+    historicalTrack: [
+      { lat: -69.82, lon: 12.50, timestamp: '2026-09-05T06:00:00Z' },
+      { lat: -69.81, lon: 12.30, timestamp: '2026-09-05T18:00:00Z' },
+      { lat: -69.80, lon: 12.10, timestamp: '2026-09-06T05:30:00Z' },
+    ],
+    predictedTrajectory: [
+      { horizon: '+6h', hours: 6, lat: -69.78, lon: 11.90, uncertaintyRadiusNm: 1.6, timestamp: '2026-09-06T11:30:00Z', confidence: 84 },
+      { horizon: '+12h', hours: 12, lat: -69.76, lon: 11.70, uncertaintyRadiusNm: 2.5, timestamp: '2026-09-06T17:30:00Z', confidence: 79 },
+      { horizon: '+24h', hours: 24, lat: -69.71, lon: 11.30, uncertaintyRadiusNm: 4.2, timestamp: '2026-09-07T05:30:00Z', confidence: 70 },
+      { horizon: '+48h', hours: 48, lat: -69.60, lon: 10.50, uncertaintyRadiusNm: 7.0, timestamp: '2026-09-08T05:30:00Z', confidence: 56 },
+      { horizon: '+72h', hours: 72, lat: -69.48, lon: 9.70, uncertaintyRadiusNm: 10.0, timestamp: '2026-09-09T05:30:00Z', confidence: 42 },
+    ],
+  },
+  {
+    id: 'ICB-MAWSON-03',
+    name: 'ICB-W303 Mac. Robertson Shelf Fragment',
+    lat: -66.90,
+    lon: 63.40,
+    sizeCategory: 'Medium',
+    estimatedLengthMeters: 1400,
+    estimatedWidthMeters: 650,
+    freeboardMeters: 22,
+    driftSpeedKnots: 1.3,
+    driftHeadingDeg: 290,
+    observationTime: '2026-09-06T04:20:00Z',
+    processingTime: '2026-09-06T04:50:00Z',
+    confidence: 86,
+    uncertaintyRadiusNm: 1.4,
+    source: 'RADARSAT Constellation',
+    isSynthetic: true,
+    historicalTrack: [
+      { lat: -66.95, lon: 63.80, timestamp: '2026-09-05T06:00:00Z' },
+      { lat: -66.90, lon: 63.40, timestamp: '2026-09-06T04:20:00Z' },
+    ],
+    predictedTrajectory: [
+      { horizon: '+6h', hours: 6, lat: -66.86, lon: 63.15, uncertaintyRadiusNm: 2.0, timestamp: '2026-09-06T10:20:00Z', confidence: 82 },
+      { horizon: '+12h', hours: 12, lat: -66.82, lon: 62.90, uncertaintyRadiusNm: 3.0, timestamp: '2026-09-06T16:20:00Z', confidence: 75 },
+      { horizon: '+24h', hours: 24, lat: -66.74, lon: 62.40, uncertaintyRadiusNm: 5.0, timestamp: '2026-09-07T04:20:00Z', confidence: 64 },
+      { horizon: '+48h', hours: 48, lat: -66.58, lon: 61.40, uncertaintyRadiusNm: 8.5, timestamp: '2026-09-08T04:20:00Z', confidence: 49 },
+      { horizon: '+72h', hours: 72, lat: -66.40, lon: 60.40, uncertaintyRadiusNm: 12.0, timestamp: '2026-09-09T04:20:00Z', confidence: 35 },
+    ],
+  },
+  {
+    id: 'ICB-CASEY-04',
+    name: 'ICB-C404 Vincennes Bay Floe Target',
+    lat: -65.70,
+    lon: 110.80,
+    sizeCategory: 'Large',
+    estimatedLengthMeters: 3200,
+    estimatedWidthMeters: 1600,
+    freeboardMeters: 30,
+    driftSpeedKnots: 1.1,
+    driftHeadingDeg: 300,
+    observationTime: '2026-09-06T07:00:00Z',
+    processingTime: '2026-09-06T07:25:00Z',
+    confidence: 90,
+    uncertaintyRadiusNm: 1.0,
+    source: 'Sentinel-1 SAR',
+    isSynthetic: true,
+    historicalTrack: [
+      { lat: -65.78, lon: 111.10, timestamp: '2026-09-05T06:00:00Z' },
+      { lat: -65.70, lon: 110.80, timestamp: '2026-09-06T07:00:00Z' },
+    ],
+    predictedTrajectory: [
+      { horizon: '+6h', hours: 6, lat: -65.65, lon: 110.55, uncertaintyRadiusNm: 1.5, timestamp: '2026-09-06T13:00:00Z', confidence: 87 },
+      { horizon: '+12h', hours: 12, lat: -65.60, lon: 110.30, uncertaintyRadiusNm: 2.3, timestamp: '2026-09-06T19:00:00Z', confidence: 81 },
+      { horizon: '+24h', hours: 24, lat: -65.50, lon: 109.80, uncertaintyRadiusNm: 4.0, timestamp: '2026-09-07T07:00:00Z', confidence: 71 },
+      { horizon: '+48h', hours: 48, lat: -65.30, lon: 108.80, uncertaintyRadiusNm: 6.8, timestamp: '2026-09-08T07:00:00Z', confidence: 58 },
+      { horizon: '+72h', hours: 72, lat: -65.10, lon: 107.80, uncertaintyRadiusNm: 9.8, timestamp: '2026-09-09T07:00:00Z', confidence: 44 },
+    ],
+  },
+  {
+    id: 'ICB-ROSS-05',
+    name: 'ICB-R505 Ross Island Tabular Giant',
+    lat: -76.20,
+    lon: 168.10,
+    sizeCategory: 'Giant Calved Tabular',
+    estimatedLengthMeters: 7500,
+    estimatedWidthMeters: 3800,
+    freeboardMeters: 45,
+    driftSpeedKnots: 0.8,
+    driftHeadingDeg: 340,
+    observationTime: '2026-09-06T08:10:00Z',
+    processingTime: '2026-09-06T08:35:00Z',
+    confidence: 95,
+    uncertaintyRadiusNm: 0.8,
+    source: 'Sentinel-1 SAR',
+    isSynthetic: true,
+    historicalTrack: [
+      { lat: -76.30, lon: 168.30, timestamp: '2026-09-05T06:00:00Z' },
+      { lat: -76.20, lon: 168.10, timestamp: '2026-09-06T08:10:00Z' },
+    ],
+    predictedTrajectory: [
+      { horizon: '+6h', hours: 6, lat: -76.15, lon: 167.95, uncertaintyRadiusNm: 1.2, timestamp: '2026-09-06T14:10:00Z', confidence: 92 },
+      { horizon: '+12h', hours: 12, lat: -76.10, lon: 167.80, uncertaintyRadiusNm: 1.9, timestamp: '2026-09-06T20:10:00Z', confidence: 88 },
+      { horizon: '+24h', hours: 24, lat: -76.00, lon: 167.50, uncertaintyRadiusNm: 3.2, timestamp: '2026-09-07T08:10:00Z', confidence: 80 },
+      { horizon: '+48h', hours: 48, lat: -75.80, lon: 166.90, uncertaintyRadiusNm: 5.5, timestamp: '2026-09-08T08:10:00Z', confidence: 67 },
+      { horizon: '+72h', hours: 72, lat: -75.60, lon: 166.30, uncertaintyRadiusNm: 8.0, timestamp: '2026-09-09T08:10:00Z', confidence: 54 },
+    ],
+  },
 ];
 
-// Synthetic Sea Ice Grid (latitude: -59 to -68, longitude: -70 to -56)
+// Synthetic Sea Ice Grid across all Antarctic regional sectors
 export const generateSyntheticSeaIce = (): SeaIceCell[] => {
   const cells: SeaIceCell[] = [];
   let index = 0;
 
-  for (let lat = -59.0; lat >= -68.5; lat -= 1.0) {
-    for (let lon = -70.0; lon <= -56.0; lon += 1.5) {
-      // Latitude factor: further south = higher ice concentration
-      const southFactor = Math.min(1.0, Math.max(0.0, (-lat - 59.0) / 9.0));
-      // Proximity to Weddell / Peninsula shelf (east is colder/pack ice)
-      const eastFactor = Math.min(1.0, Math.max(0.0, (lon + 70.0) / 14.0));
-
-      let baseConcentration = southFactor * 75 + eastFactor * 20;
-      // Drake passage open lead
-      if (lat > -60.5) baseConcentration *= 0.15;
-      // Marguerite bay coastal pack
-      if (lat < -66.5 && lon < -66.0) baseConcentration = Math.min(94, baseConcentration + 25);
-
-      const concentration = Math.min(98, Math.max(0, Math.round(baseConcentration)));
-
+  // Sector 1: Peninsula & Weddell Sea (-58° to -75° lat, -75° to -25° lon)
+  for (let lat = -59.0; lat >= -74.5; lat -= 2.0) {
+    for (let lon = -70.0; lon <= -26.0; lon += 3.0) {
+      const southFactor = Math.min(1.0, Math.max(0.0, (-lat - 59.0) / 15.0));
+      const concentration = Math.min(96, Math.max(0, Math.round(southFactor * 78 + (Math.random() - 0.5) * 15)));
       let stage: SeaIceCell['stage'] = 'Open Water';
       if (concentration > 90) stage = 'Consolidated Fast Ice';
       else if (concentration > 70) stage = 'Close Pack (70-80%)';
       else if (concentration > 40) stage = 'Open Drift (40-60%)';
       else if (concentration > 15) stage = 'Very Open Drift (10-30%)';
 
-      const thickness = concentration > 70 ? 1.8 + Math.random() * 0.8 : concentration > 40 ? 0.9 + Math.random() * 0.5 : 0.2;
-
       cells.push({
-        id: `ice-cell-${index++}`,
+        id: `ice-cell-pen-${index++}`,
         lat: Number(lat.toFixed(2)),
         lon: Number(lon.toFixed(2)),
         concentrationPercent: concentration,
         stage,
-        thicknessMeters: Number(thickness.toFixed(2)),
-        driftVector: {
-          speedKnots: Number((0.4 + Math.random() * 0.8).toFixed(2)),
-          headingDeg: Math.round(210 + (Math.random() - 0.5) * 40),
-        },
-        predictedConcentration72h: Math.min(99, Math.max(0, Math.round(concentration + (Math.random() - 0.4) * 8))),
-        confidence: Math.round(85 - southFactor * 18),
-        uncertainty: Math.round(15 + southFactor * 22),
+        thicknessMeters: Number((0.3 + southFactor * 1.5).toFixed(2)),
+        driftVector: { speedKnots: 0.6, headingDeg: 220 },
+        predictedConcentration72h: Math.min(99, Math.max(0, Math.round(concentration + 5))),
+        confidence: 85,
+        uncertainty: 15,
+        timestamp: '2026-09-06T06:00:00Z',
+      });
+    }
+  }
+
+  // Sector 2: East Antarctica Coastal Margin (-64° to -71° lat, -20° to 140° lon)
+  for (let lat = -64.0; lat >= -70.5; lat -= 2.0) {
+    for (let lon = -15.0; lon <= 135.0; lon += 6.0) {
+      const southFactor = Math.min(1.0, Math.max(0.0, (-lat - 64.0) / 6.5));
+      const concentration = Math.min(92, Math.max(0, Math.round(southFactor * 70 + (Math.random() - 0.5) * 12)));
+      let stage: SeaIceCell['stage'] = 'Open Water';
+      if (concentration > 90) stage = 'Consolidated Fast Ice';
+      else if (concentration > 70) stage = 'Close Pack (70-80%)';
+      else if (concentration > 40) stage = 'Open Drift (40-60%)';
+      else if (concentration > 15) stage = 'Very Open Drift (10-30%)';
+
+      cells.push({
+        id: `ice-cell-east-${index++}`,
+        lat: Number(lat.toFixed(2)),
+        lon: Number(lon.toFixed(2)),
+        concentrationPercent: concentration,
+        stage,
+        thicknessMeters: Number((0.2 + southFactor * 1.4).toFixed(2)),
+        driftVector: { speedKnots: 0.8, headingDeg: 270 },
+        predictedConcentration72h: Math.min(99, Math.max(0, Math.round(concentration + 4))),
+        confidence: 86,
+        uncertainty: 14,
+        timestamp: '2026-09-06T06:00:00Z',
+      });
+    }
+  }
+
+  // Sector 3: Ross Sea Sector (-68° to -77° lat, 155° to -160° lon)
+  for (let lat = -69.0; lat >= -76.5; lat -= 2.5) {
+    for (let lon = 160.0; lon <= 180.0; lon += 5.0) {
+      const southFactor = Math.min(1.0, Math.max(0.0, (-lat - 69.0) / 7.5));
+      const concentration = Math.min(95, Math.max(0, Math.round(southFactor * 82)));
+      let stage: SeaIceCell['stage'] = 'Open Water';
+      if (concentration > 90) stage = 'Consolidated Fast Ice';
+      else if (concentration > 70) stage = 'Close Pack (70-80%)';
+      else if (concentration > 40) stage = 'Open Drift (40-60%)';
+      else if (concentration > 15) stage = 'Very Open Drift (10-30%)';
+
+      cells.push({
+        id: `ice-cell-ross-${index++}`,
+        lat: Number(lat.toFixed(2)),
+        lon: Number(lon.toFixed(2)),
+        concentrationPercent: concentration,
+        stage,
+        thicknessMeters: Number((0.4 + southFactor * 1.6).toFixed(2)),
+        driftVector: { speedKnots: 0.5, headingDeg: 310 },
+        predictedConcentration72h: Math.min(99, Math.max(0, Math.round(concentration + 6))),
+        confidence: 88,
+        uncertainty: 12,
         timestamp: '2026-09-06T06:00:00Z',
       });
     }
