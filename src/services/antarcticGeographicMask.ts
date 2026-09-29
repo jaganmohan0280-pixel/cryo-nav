@@ -8,6 +8,8 @@
  * Data Provenance: REAL SCAR (Scientific Committee on Antarctic Research) / Antarctic Digital Database (ADD) baselines.
  */
 
+import { SeaIceCell } from '../types';
+
 export type GeographicCellType = 'WATER' | 'LAND' | 'ICE_SHELF' | 'UNKNOWN';
 
 export interface LatLngPoint {
@@ -25,6 +27,8 @@ export interface GeographicMaskValidationResult {
   isValid: boolean;
   landIntersectionsCount: number;
   iceShelfIntersectionsCount: number;
+  seaIceIntersectionsCount?: number;
+  seaIceMaxConcentrationPercent?: number;
   unknownSegmentsCount: number;
   waterSegmentsCount: number;
   totalSegmentsCount: number;
@@ -200,6 +204,13 @@ export function calculateDistanceNm(lat1: number, lon1: number, lat2: number, lo
  */
 export function isPointInPolygon(lat: number, lon: number, polygon: PolygonRing): boolean {
   const coords = polygon.coordinates;
+  // Vertex proximity check: points within 0.1 deg of polygon vertices are treated as inside prohibited polygon
+  for (let i = 0; i < coords.length; i++) {
+    if (Math.abs(coords[i][0] - lat) < 0.15 && Math.abs(coords[i][1] - lon) < 0.15) {
+      return true;
+    }
+  }
+
   let inside = false;
   for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
     const xi = coords[i][1], yi = coords[i][0];
@@ -358,17 +369,103 @@ export function segmentIntersectsProhibitedGeography(
 }
 
 /**
+ * Gets sea ice concentration percent at a coordinate from sea-ice dataset
+ */
+export function getSeaIceConcentrationAtPoint(lat: number, lon: number, seaIceCells?: SeaIceCell[]): number {
+  if (!seaIceCells || seaIceCells.length === 0) return 0;
+  let minCellDist = Infinity;
+  let nearestCell: SeaIceCell | null = null;
+
+  for (let i = 0; i < seaIceCells.length; i++) {
+    const cell = seaIceCells[i];
+    const d = calculateDistanceNm(lat, lon, cell.lat, cell.lon);
+    if (d < minCellDist) {
+      minCellDist = d;
+      nearestCell = cell;
+    }
+  }
+
+  if (nearestCell && minCellDist <= 35.0) {
+    return nearestCell.concentrationPercent;
+  }
+  return 0;
+}
+
+/**
+ * Evaluates whether a coordinate is open, navigable ocean water (0% land, 0% shelf, <= maxSeaIceConc)
+ */
+export function isNavigableOceanPoint(
+  lat: number,
+  lon: number,
+  seaIceCells?: SeaIceCell[],
+  maxSeaIceConc: number = 15
+): boolean {
+  const cls = classifyGeographicLocation(lat, lon);
+  if (cls !== 'WATER') return false;
+
+  if (seaIceCells && seaIceCells.length > 0) {
+    const conc = getSeaIceConcentrationAtPoint(lat, lon, seaIceCells);
+    if (conc > maxSeaIceConc) return false;
+  }
+
+  return true;
+}
+
+/**
+ * Evaluates whether a line segment is 100% navigable ocean water (no land, shelf, or sea-ice crossing)
+ */
+export function segmentIsNavigableWater(
+  p1: [number, number],
+  p2: [number, number],
+  seaIceCells?: SeaIceCell[],
+  maxSeaIceConc: number = 15
+): { isNavigable: boolean; reason?: string; maxSeaIce?: number } {
+  const check = segmentIntersectsProhibitedGeography(p1, p2);
+  if (check.intersects) {
+    return { isNavigable: false, reason: check.polygonName || 'Prohibited Geography' };
+  }
+
+  const numSamples = 8;
+  let maxIceFound = 0;
+
+  for (let s = 0; s <= numSamples; s++) {
+    const frac = s / numSamples;
+    const sampleLat = p1[0] + (p2[0] - p1[0]) * frac;
+    const sampleLon = p1[1] + (p2[1] - p1[1]) * frac;
+
+    const cls = classifyGeographicLocation(sampleLat, sampleLon);
+    if (cls !== 'WATER') {
+      return { isNavigable: false, reason: `Segment sample point (${sampleLat.toFixed(2)}°, ${sampleLon.toFixed(2)}°) is ${cls}` };
+    }
+
+    if (seaIceCells && seaIceCells.length > 0) {
+      const conc = getSeaIceConcentrationAtPoint(sampleLat, sampleLon, seaIceCells);
+      if (conc > maxIceFound) maxIceFound = conc;
+      if (conc > maxSeaIceConc) {
+        return { isNavigable: false, reason: `Segment sample point (${sampleLat.toFixed(2)}°, ${sampleLon.toFixed(2)}°) intersects pack ice (${conc}%)`, maxSeaIce: conc };
+      }
+    }
+  }
+
+  return { isNavigable: true, maxSeaIce: maxIceFound };
+}
+
+/**
  * Full Route Pipeline Validation: validateMaritimeRouteGeometry()
  */
 export function validateMaritimeRouteGeometry(
   waypoints: [number, number][],
   sourceStationId?: string,
-  destStationId?: string
+  destStationId?: string,
+  seaIceCells?: SeaIceCell[],
+  maxSeaIceConc: number = 15
 ): GeographicMaskValidationResult {
   const result: GeographicMaskValidationResult = {
     isValid: true,
     landIntersectionsCount: 0,
     iceShelfIntersectionsCount: 0,
+    seaIceIntersectionsCount: 0,
+    seaIceMaxConcentrationPercent: 0,
     unknownSegmentsCount: 0,
     waterSegmentsCount: 0,
     totalSegmentsCount: 0,
@@ -414,37 +511,42 @@ export function validateMaritimeRouteGeometry(
       result.details = `Segment #${i + 1} jump of ${segDist.toFixed(1)} nm exceeds maximum plausible jump threshold (1200 nm).`;
     }
 
-    // Test segment intersection with land & ice shelf
-    const check = segmentIntersectsProhibitedGeography(p1, p2);
-    if (check.intersects) {
+    // Test segment navigability against land, ice shelf, and sea-ice
+    const check = segmentIsNavigableWater(p1, p2, seaIceCells, maxSeaIceConc);
+    if (!check.isNavigable) {
       result.isValid = false;
       if (result.firstInvalidSegmentIndex === null) result.firstInvalidSegmentIndex = i;
 
-      if (check.type === 'LAND') {
+      if (check.reason?.includes('LAND') || check.reason?.includes('Continental')) {
         result.landIntersectionsCount++;
         if (result.failureReason === 'NONE') {
           result.failureReason = 'LAND_CROSSING';
-          result.details = `Route segment #${i + 1} (${p1[0].toFixed(2)}°, ${p1[1].toFixed(2)}° -> ${p2[0].toFixed(2)}°, ${p2[1].toFixed(2)}°) intersects ${check.polygonName}.`;
+          result.details = `Route segment #${i + 1} (${p1[0].toFixed(2)}°, ${p1[1].toFixed(2)}° -> ${p2[0].toFixed(2)}°, ${p2[1].toFixed(2)}°) intersects ${check.reason}.`;
         }
-      } else if (check.type === 'ICE_SHELF') {
+      } else if (check.reason?.includes('Ice Shelf') || check.reason?.includes('ICE_SHELF')) {
         result.iceShelfIntersectionsCount++;
         if (result.failureReason === 'NONE') {
           result.failureReason = 'ICE_SHELF_CROSSING';
-          result.details = `Route segment #${i + 1} (${p1[0].toFixed(2)}°, ${p1[1].toFixed(2)}° -> ${p2[0].toFixed(2)}°, ${p2[1].toFixed(2)}°) intersects impassable ${check.polygonName}.`;
+          result.details = `Route segment #${i + 1} (${p1[0].toFixed(2)}°, ${p1[1].toFixed(2)}° -> ${p2[0].toFixed(2)}°, ${p2[1].toFixed(2)}°) intersects ${check.reason}.`;
+        }
+      } else if (check.reason?.includes('pack ice') || check.reason?.includes('sea ice')) {
+        result.seaIceIntersectionsCount = (result.seaIceIntersectionsCount || 0) + 1;
+        if (check.maxSeaIce && check.maxSeaIce > (result.seaIceMaxConcentrationPercent || 0)) {
+          result.seaIceMaxConcentrationPercent = check.maxSeaIce;
+        }
+        if (result.failureReason === 'NONE') {
+          result.failureReason = 'VESSEL_CONSTRAINT_VIOLATION';
+          result.details = `Route segment #${i + 1} (${p1[0].toFixed(2)}°, ${p1[1].toFixed(2)}° -> ${p2[0].toFixed(2)}°, ${p2[1].toFixed(2)}°) intersects non-navigable pack ice (${check.maxSeaIce}%).`;
+        }
+      } else {
+        result.unknownSegmentsCount++;
+        if (result.failureReason === 'NONE') {
+          result.failureReason = 'UNKNOWN_GEOGRAPHY';
+          result.details = `Route segment #${i + 1} passes through non-navigable zone: ${check.reason}.`;
         }
       }
     } else {
-      // Check individual vertex classification
-      const c1 = classifyGeographicLocation(p1[0], p1[1]);
-      const c2 = classifyGeographicLocation(p2[0], p2[1]);
-      if (c1 === 'UNKNOWN' || c2 === 'UNKNOWN') {
-        result.unknownSegmentsCount++;
-        if (result.failureReason === 'NONE') {
-          result.details = `Route segment #${i + 1} passes through unclassified geographic region. Geographic verification required.`;
-        }
-      } else {
-        result.waterSegmentsCount++;
-      }
+      result.waterSegmentsCount++;
     }
   }
 

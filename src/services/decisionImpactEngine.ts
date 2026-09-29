@@ -249,7 +249,7 @@ export function evaluateProductDecisionImpact(
   if (connection === 'LIMITED') transferSpeedMbPerMin = 8;
   else if (connection === 'OFFLINE') transferSpeedMbPerMin = 0.001;
 
-  const estimatedAcquisitionTimeMinutes = Number((product.sizeMb / transferSpeedMbPerMin).toFixed(1));
+  const estimatedAcquisitionTimeMinutes = Number(((product?.sizeMb || 100) / transferSpeedMbPerMin).toFixed(1));
   const isFiveMinuteEligible = estimatedAcquisitionTimeMinutes <= 5.0 && connection !== 'OFFLINE';
 
   // 11. DYNAMIC RATIONALE GENERATION ("WHY THIS DATA?")

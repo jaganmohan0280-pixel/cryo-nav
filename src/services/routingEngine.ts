@@ -26,6 +26,8 @@ import {
   classifyGeographicLocation,
   segmentIntersectsProhibitedGeography,
   validateMaritimeRouteGeometry,
+  isNavigableOceanPoint,
+  segmentIsNavigableWater,
   toLeafletLatLng,
   toGeoJsonCoordinate,
 } from './antarcticGeographicMask';
@@ -276,9 +278,11 @@ export function validateRouteGeometry(
   waypoints: [number, number][],
   source: [number, number],
   dest: [number, number],
-  vessel?: VesselProfile
+  vessel?: VesselProfile,
+  seaIceCells?: SeaIceCell[]
 ): RouteGeometryValidationResult {
-  const geoResult = validateMaritimeRouteGeometry(waypoints);
+  const maxIce = vessel?.maxSeaIceConcentrationPercent !== undefined ? Math.min(15, vessel.maxSeaIceConcentrationPercent) : 15;
+  const geoResult = validateMaritimeRouteGeometry(waypoints, undefined, undefined, seaIceCells, maxIce);
   if (!geoResult.isValid) {
     return {
       isValid: false,
@@ -322,26 +326,36 @@ interface GridNode {
 }
 
 /**
- * Dynamic Region-Based Water Navigation Grid Generator
+ * Dynamic Region-Based Water Navigation Grid Generator with Sea-Ice Avoidance & Fast Indexing
  */
 function buildDynamicWaterGrid(
   startPt: [number, number],
-  endPt: [number, number]
+  endPt: [number, number],
+  seaIceCells?: SeaIceCell[],
+  maxSeaIceThreshold: number = 15
 ): {
   nodes: GridNode[];
   adjList: Map<string, { targetId: string; distanceNm: number }[]>;
   startNodeId: string;
   endNodeId: string;
 } {
-  // 1. Calculate bounding region
-  let minLat = Math.min(startPt[0], endPt[0]) - 2.5;
-  let maxLat = Math.max(startPt[0], endPt[0]) + 2.5;
-  let minLon = Math.min(startPt[1], endPt[1]) - 6.0;
-  let maxLon = Math.max(startPt[1], endPt[1]) + 6.0;
+  const voyageDist = calculateDistanceNm(startPt[0], startPt[1], endPt[0], endPt[1]);
 
-  // Clamp latitude bounds
-  minLat = Math.max(-85.0, minLat);
-  maxLat = Math.min(-50.0, maxLat);
+  // 1. Calculate bounding region
+  let minLat = Math.min(startPt[0], endPt[0]) - 3.0;
+  let maxLat = Math.max(startPt[0], endPt[0]) + 3.0;
+  let minLon = Math.min(startPt[1], endPt[1]) - 8.0;
+  let maxLon = Math.max(startPt[1], endPt[1]) + 8.0;
+
+  if (Math.abs(startPt[1] - endPt[1]) > 90) {
+    minLat = -75.0;
+    maxLat = -55.0;
+    minLon = -180.0;
+    maxLon = 180.0;
+  } else {
+    minLat = Math.max(-85.0, minLat);
+    maxLat = Math.min(-50.0, maxLat);
+  }
 
   // If voyage crosses or approaches the Antarctic Peninsula
   const isPeninsulaVoyage =
@@ -363,16 +377,23 @@ function buildDynamicWaterGrid(
   nodesMap.set(startId, { id: startId, lat: startPt[0], lon: startPt[1] });
   nodesMap.set(endId, { id: endId, lat: endPt[0], lon: endPt[1] });
 
-  // Fine-grained grid step sizes: ~15 nm lat, ~15 nm lon at Antarctic latitudes
-  const latStep = 0.25;
-  const lonStep = 0.6;
+  // Adaptive step sizes
+  let latStep = 0.25;
+  let lonStep = 0.6;
+  if (voyageDist > 1500) {
+    latStep = 0.5;
+    lonStep = 1.2;
+  } else if (voyageDist > 800) {
+    latStep = 0.35;
+    lonStep = 0.8;
+  }
 
   for (let lat = minLat; lat <= maxLat; lat += latStep) {
     for (let lon = minLon; lon <= maxLon; lon += lonStep) {
       const curLat = Number(lat.toFixed(3));
       const curLon = Number(lon.toFixed(3));
-      const cls = classifyGeographicLocation(curLat, curLon);
-      if (cls === 'WATER') {
+      const isNav = isNavigableOceanPoint(curLat, curLon, seaIceCells, maxSeaIceThreshold);
+      if (isNav) {
         const id = `grid-${curLat}_${curLon}`;
         nodesMap.set(id, { id, lat: curLat, lon: curLon });
       }
@@ -383,24 +404,69 @@ function buildDynamicWaterGrid(
   const adjList = new Map<string, { targetId: string; distanceNm: number }[]>();
   nodes.forEach((n) => adjList.set(n.id, []));
 
-  // Connect 8-connected grid neighbors (Max neighbor distance 40 nm)
-  const MAX_NEIGHBOR_DIST_NM = 40.0;
+  const MAX_NEIGHBOR_DIST_NM = voyageDist > 1500 ? 90.0 : voyageDist > 800 ? 60.0 : 45.0;
 
-  for (let i = 0; i < nodes.length; i++) {
-    for (let j = i + 1; j < nodes.length; j++) {
-      const u = nodes[i];
-      const v = nodes[j];
-      const dist = calculateDistanceNm(u.lat, u.lon, v.lat, v.lon);
+  // 2. Build spatial bucket index for regular grid nodes (excluding start/end)
+  const bucketSizeLat = 1.0;
+  const bucketSizeLon = 2.0;
+  const spatialBuckets = new Map<string, GridNode[]>();
 
-      if (dist <= MAX_NEIGHBOR_DIST_NM) {
-        const check = segmentIntersectsProhibitedGeography([u.lat, u.lon], [v.lat, v.lon]);
-        if (!check.intersects) {
-          adjList.get(u.id)?.push({ targetId: v.id, distanceNm: dist });
-          adjList.get(v.id)?.push({ targetId: u.id, distanceNm: dist });
+  const regularGridNodes = nodes.filter((n) => n.id !== startId && n.id !== endId);
+
+  regularGridNodes.forEach((node) => {
+    const bLat = Math.floor(node.lat / bucketSizeLat);
+    const bLon = Math.floor(node.lon / bucketSizeLon);
+    const key = `${bLat}_${bLon}`;
+    if (!spatialBuckets.has(key)) spatialBuckets.set(key, []);
+    spatialBuckets.get(key)!.push(node);
+  });
+
+  // 3. Connect regular grid nodes to each other
+  regularGridNodes.forEach((u) => {
+    const uBucketLat = Math.floor(u.lat / bucketSizeLat);
+    const uBucketLon = Math.floor(u.lon / bucketSizeLon);
+
+    for (let dLat = -2; dLat <= 2; dLat++) {
+      for (let dLon = -2; dLon <= 2; dLon++) {
+        const key = `${uBucketLat + dLat}_${uBucketLon + dLon}`;
+        const bucketNodes = spatialBuckets.get(key);
+        if (!bucketNodes) continue;
+
+        for (let j = 0; j < bucketNodes.length; j++) {
+          const v = bucketNodes[j];
+          if (u.id >= v.id) continue; // avoid duplicate bidirectional checks
+
+          const dist = calculateDistanceNm(u.lat, u.lon, v.lat, v.lon);
+          if (dist <= MAX_NEIGHBOR_DIST_NM) {
+            const check = segmentIsNavigableWater([u.lat, u.lon], [v.lat, v.lon], seaIceCells, maxSeaIceThreshold);
+            if (check.isNavigable) {
+              adjList.get(u.id)?.push({ targetId: v.id, distanceNm: dist });
+              adjList.get(v.id)?.push({ targetId: u.id, distanceNm: dist });
+            }
+          }
         }
       }
     }
-  }
+  });
+
+  // 4. Connect startNode and endNode to all nearby navigable grid nodes (or each other if direct)
+  const terminalNodes = [nodesMap.get(startId)!, nodesMap.get(endId)!];
+  terminalNodes.forEach((termNode) => {
+    if (!termNode) return;
+    const searchRadiusNm = Math.max(MAX_NEIGHBOR_DIST_NM, 150.0); // generous search radius for terminal access
+
+    nodes.forEach((target) => {
+      if (termNode.id === target.id) return;
+      const dist = calculateDistanceNm(termNode.lat, termNode.lon, target.lat, target.lon);
+      if (dist <= searchRadiusNm) {
+        const check = segmentIsNavigableWater([termNode.lat, termNode.lon], [target.lat, target.lon], seaIceCells, maxSeaIceThreshold);
+        if (check.isNavigable) {
+          adjList.get(termNode.id)?.push({ targetId: target.id, distanceNm: dist });
+          adjList.get(target.id)?.push({ targetId: termNode.id, distanceNm: dist });
+        }
+      }
+    });
+  });
 
   return { nodes, adjList, startNodeId: startId, endNodeId: endId };
 }
@@ -558,8 +624,9 @@ export function generateRouteAlternatives(
     return [];
   }
 
-  // 3. Build Dynamic Water Grid
-  const grid = buildDynamicWaterGrid(startPt, destPt);
+  // 3. Build Dynamic Water Grid with Sea-Ice Avoidance
+  const maxIceThreshold = vessel.maxSeaIceConcentrationPercent !== undefined ? Math.min(15, vessel.maxSeaIceConcentrationPercent) : 15;
+  const grid = buildDynamicWaterGrid(startPt, destPt, seaIceCells, maxIceThreshold);
 
   const rawCandidatePaths: [number, number][][] = [];
 
@@ -615,33 +682,34 @@ export function generateRouteAlternatives(
     return []; // ROUTE UNAVAILABLE
   }
 
-  // 4. Densify & Validate 100% Water Safety against antarcticGeographicMask
+  // 4. Densify & Validate 100% Water Safety against antarcticGeographicMask & seaIceCells
   const validatedCandidates: [number, number][][] = [];
 
   for (const rawPath of rawCandidatePaths) {
     const fullWaypoints: [number, number][] = [];
 
-    if (startStation && startStation.isCoastal) {
-      const origStart: [number, number] = [mission.startLocation.lat, mission.startLocation.lon];
-      const checkStart = segmentIntersectsProhibitedGeography(origStart, rawPath[0]);
-      if (!checkStart.intersects) fullWaypoints.push(origStart);
-    }
-
-    // Densify
+    // Densify vessel route
     for (let i = 0; i < rawPath.length - 1; i++) {
       const sub = interpolateSubsegment(rawPath[i], rawPath[i + 1], 20);
       if (i > 0) sub.shift();
       fullWaypoints.push(...sub);
     }
 
-    if (destStation && destStation.isCoastal) {
-      const origDest: [number, number] = [mission.destination.lat, mission.destination.lon];
-      const checkEnd = segmentIntersectsProhibitedGeography(fullWaypoints[fullWaypoints.length - 1], origDest);
-      if (!checkEnd.intersects) fullWaypoints.push(origDest);
+    const origStart: [number, number] = [mission.startLocation.lat, mission.startLocation.lon];
+    const origDest: [number, number] = [mission.destination.lat, mission.destination.lon];
+
+    const checkStart = segmentIsNavigableWater(origStart, fullWaypoints[0], seaIceCells, maxIceThreshold);
+    if (checkStart.isNavigable) {
+      fullWaypoints.unshift(origStart);
     }
 
-    const valResult = validateMaritimeRouteGeometry(fullWaypoints);
-    if (valResult.isValid && valResult.landIntersectionsCount === 0 && valResult.iceShelfIntersectionsCount === 0) {
+    const checkEnd = segmentIsNavigableWater(fullWaypoints[fullWaypoints.length - 1], origDest, seaIceCells, maxIceThreshold);
+    if (checkEnd.isNavigable) {
+      fullWaypoints.push(origDest);
+    }
+
+    const valResult = validateMaritimeRouteGeometry(fullWaypoints, undefined, undefined, seaIceCells, maxIceThreshold);
+    if (valResult.isValid && valResult.landIntersectionsCount === 0 && valResult.iceShelfIntersectionsCount === 0 && (valResult.seaIceIntersectionsCount || 0) === 0) {
       validatedCandidates.push(fullWaypoints);
     }
   }
