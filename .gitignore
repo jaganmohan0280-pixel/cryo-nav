@@ -10,7 +10,9 @@ coverage/
 *.log
 logs/
 .cache/
-cache/
+/cache/
+!src/data/cache/
+!src/data/cache/*.ts
 
 
 # Environment configuration
