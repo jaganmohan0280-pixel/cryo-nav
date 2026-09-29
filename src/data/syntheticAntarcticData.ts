@@ -73,21 +73,21 @@ import { AUTHORITATIVE_RESEARCH_STATIONS } from './researchStations';
 export const ANTARCTIC_STATIONS = AUTHORITATIVE_RESEARCH_STATIONS;
 
 export const DEFAULT_MISSION: MissionConfig = {
-  id: 'mission-east-ant-2026',
-  title: 'East Antarctic Research Supply Voyage',
+  id: 'mission-ant-2026-08',
+  title: 'Marguerite Bay & Rothera Resupply Transit',
   vesselId: 'vessel-pc3-alpha',
   startLocation: {
-    name: 'Maitri Research Station (India)',
-    lat: -70.76,
-    lon: 11.74,
+    name: 'Drake Passage South Ingress Gate',
+    lat: -59.50,
+    lon: -64.50,
   },
   destination: {
-    name: 'Bharati Antarctic Station (India)',
-    lat: -69.41,
-    lon: 76.19,
+    name: 'Rothera Research Station (Adelaide Island)',
+    lat: -67.57,
+    lon: -68.13,
   },
-  missionType: 'Resupply',
-  departureTime: '2026-09-29T12:00:00Z',
+  missionType: 'Research',
+  departureTime: '2026-09-06T12:00:00Z',
   priority: 'High',
   riskPreference: 'Conservative',
   fuelPreference: 'Standard',
@@ -95,19 +95,19 @@ export const DEFAULT_MISSION: MissionConfig = {
   maxSeaIceConcentration: 75,
   researchWaypoints: [
     {
-      id: 'wp-ea-1',
-      name: 'Princess Astrid Coast Oceanographic Cast',
-      lat: -69.20,
-      lon: 25.00,
+      id: 'wp-1',
+      name: 'King George Oceanographic Transect (CTD-01)',
+      lat: -62.45,
+      lon: -60.10,
       order: 1,
-      stopDurationHours: 3,
+      stopDurationHours: 4,
       type: 'Oceanographic Cast',
     },
     {
-      id: 'wp-ea-2',
-      name: 'Prydz Bay Glacial Hydrodynamics Buoy',
-      lat: -68.80,
-      lon: 72.50,
+      id: 'wp-2',
+      name: 'Anvers Island Glacial Runoff Buoy',
+      lat: -64.95,
+      lon: -64.30,
       order: 2,
       stopDurationHours: 2,
       type: 'Drift Buoy Deployment',
@@ -115,205 +115,217 @@ export const DEFAULT_MISSION: MissionConfig = {
   ],
   exclusionZones: [
     {
-      id: 'ex-ea-1',
-      name: 'Amery Ice Shelf Calving Danger Zone',
+      id: 'ex-1',
+      name: 'Adelaide Island West Shallow Reef & Calving Front',
       polygon: [
-        [-69.00, 68.50],
-        [-69.00, 73.00],
-        [-71.50, 73.00],
-        [-71.50, 68.50],
+        [-67.10, -69.50],
+        [-67.10, -68.80],
+        [-67.60, -68.80],
+        [-67.60, -69.50],
       ],
       reason: 'Calving Shelf Danger Zone',
+    },
+    {
+      id: 'ex-2',
+      name: 'South Shetland Specially Protected Marine Area',
+      polygon: [
+        [-62.80, -61.20],
+        [-62.80, -60.50],
+        [-63.20, -60.50],
+        [-63.20, -61.20],
+      ],
+      reason: 'Protected Marine Reserve',
     },
   ],
   status: 'Active',
 };
 
-// Synthetic Regional Icebergs with predicted deterministic drift trajectories (+6h, +12h, +24h, +48h, +72h)
+// Synthetic Icebergs with tracks and predicted deterministic drift trajectories (+6h, +12h, +24h, +48h, +72h)
 export const INITIAL_ICEBERGS: IcebergDetection[] = [
   {
-    id: 'ICB-D28-FRAG',
-    name: 'D-28 Amery Calved Fragment',
-    lat: -68.85,
-    lon: 74.50,
+    id: 'ICB-A76A-FRAG',
+    name: 'A-76A Calved Tabular Fragment',
+    lat: -63.15,
+    lon: -58.40,
     sizeCategory: 'Giant Calved Tabular',
-    estimatedLengthMeters: 6200,
-    estimatedWidthMeters: 2800,
-    freeboardMeters: 36,
-    driftSpeedKnots: 1.2,
-    driftHeadingDeg: 285,
-    observationTime: '2026-09-29T06:15:00Z',
-    processingTime: '2026-09-29T06:40:00Z',
-    confidence: 95,
+    estimatedLengthMeters: 8400,
+    estimatedWidthMeters: 3100,
+    freeboardMeters: 38,
+    driftSpeedKnots: 1.4,
+    driftHeadingDeg: 38,
+    observationTime: '2026-09-06T06:15:00Z',
+    processingTime: '2026-09-06T06:40:00Z',
+    confidence: 94,
     uncertaintyRadiusNm: 0.8,
     source: 'Sentinel-1 SAR',
     isSynthetic: true,
     historicalTrack: [
-      { lat: -69.10, lon: 75.20, timestamp: '2026-09-28T06:00:00Z' },
-      { lat: -69.00, lon: 74.90, timestamp: '2026-09-28T18:00:00Z' },
-      { lat: -68.92, lon: 74.70, timestamp: '2026-09-29T00:00:00Z' },
-      { lat: -68.85, lon: 74.50, timestamp: '2026-09-29T06:15:00Z' },
+      { lat: -63.50, lon: -58.85, timestamp: '2026-09-05T06:00:00Z' },
+      { lat: -63.38, lon: -58.70, timestamp: '2026-09-05T18:00:00Z' },
+      { lat: -63.26, lon: -58.55, timestamp: '2026-09-06T00:00:00Z' },
+      { lat: -63.15, lon: -58.40, timestamp: '2026-09-06T06:15:00Z' },
     ],
     predictedTrajectory: [
-      { horizon: '+6h', hours: 6, lat: -68.76, lon: 74.25, uncertaintyRadiusNm: 1.4, timestamp: '2026-09-29T12:15:00Z', confidence: 92 },
-      { horizon: '+12h', hours: 12, lat: -68.67, lon: 74.00, uncertaintyRadiusNm: 2.1, timestamp: '2026-09-29T18:15:00Z', confidence: 87 },
-      { horizon: '+24h', hours: 24, lat: -68.49, lon: 73.48, uncertaintyRadiusNm: 3.6, timestamp: '2026-09-30T06:15:00Z', confidence: 79 },
-      { horizon: '+48h', hours: 48, lat: -68.12, lon: 72.40, uncertaintyRadiusNm: 6.2, timestamp: '2026-10-01T06:15:00Z', confidence: 65 },
-      { horizon: '+72h', hours: 72, lat: -67.75, lon: 71.30, uncertaintyRadiusNm: 9.2, timestamp: '2026-10-02T06:15:00Z', confidence: 53 },
+      { horizon: '+6h', hours: 6, lat: -63.02, lon: -58.24, uncertaintyRadiusNm: 1.4, timestamp: '2026-09-06T12:15:00Z', confidence: 91 },
+      { horizon: '+12h', hours: 12, lat: -62.88, lon: -58.07, uncertaintyRadiusNm: 2.2, timestamp: '2026-09-06T18:15:00Z', confidence: 86 },
+      { horizon: '+24h', hours: 24, lat: -62.61, lon: -57.73, uncertaintyRadiusNm: 3.8, timestamp: '2026-09-07T06:15:00Z', confidence: 78 },
+      { horizon: '+48h', hours: 48, lat: -62.06, lon: -57.06, uncertaintyRadiusNm: 6.5, timestamp: '2026-09-08T06:15:00Z', confidence: 64 },
+      { horizon: '+72h', hours: 72, lat: -61.50, lon: -56.38, uncertaintyRadiusNm: 9.8, timestamp: '2026-09-09T06:15:00Z', confidence: 52 },
     ],
   },
   {
-    id: 'ICB-MAITRI-01',
-    name: 'Schirmacher Coastal Iceberg',
-    lat: -69.80,
-    lon: 14.20,
+    id: 'ICB-B22A-SEC',
+    name: 'B-22A Marginal Floe Block',
+    lat: -65.20,
+    lon: -64.85,
     sizeCategory: 'Large',
-    estimatedLengthMeters: 2400,
-    estimatedWidthMeters: 1300,
-    freeboardMeters: 28,
-    driftSpeedKnots: 0.9,
-    driftHeadingDeg: 260,
-    observationTime: '2026-09-29T05:30:00Z',
-    processingTime: '2026-09-29T06:05:00Z',
-    confidence: 90,
-    uncertaintyRadiusNm: 1.0,
+    estimatedLengthMeters: 2600,
+    estimatedWidthMeters: 1400,
+    freeboardMeters: 26,
+    driftSpeedKnots: 1.1,
+    driftHeadingDeg: 215,
+    observationTime: '2026-09-06T05:30:00Z',
+    processingTime: '2026-09-06T06:05:00Z',
+    confidence: 89,
+    uncertaintyRadiusNm: 1.2,
     source: 'RADARSAT Constellation',
     isSynthetic: true,
     historicalTrack: [
-      { lat: -69.72, lon: 14.70, timestamp: '2026-09-28T06:00:00Z' },
-      { lat: -69.75, lon: 14.50, timestamp: '2026-09-28T18:00:00Z' },
-      { lat: -69.78, lon: 14.32, timestamp: '2026-09-29T00:00:00Z' },
-      { lat: -69.80, lon: 14.20, timestamp: '2026-09-29T05:30:00Z' },
+      { lat: -64.88, lon: -64.45, timestamp: '2026-09-05T06:00:00Z' },
+      { lat: -64.99, lon: -64.58, timestamp: '2026-09-05T18:00:00Z' },
+      { lat: -65.10, lon: -64.72, timestamp: '2026-09-06T00:00:00Z' },
+      { lat: -65.20, lon: -64.85, timestamp: '2026-09-06T05:30:00Z' },
     ],
     predictedTrajectory: [
-      { horizon: '+6h', hours: 6, lat: -69.83, lon: 13.98, uncertaintyRadiusNm: 1.6, timestamp: '2026-09-29T11:30:00Z', confidence: 86 },
-      { horizon: '+12h', hours: 12, lat: -69.86, lon: 13.76, uncertaintyRadiusNm: 2.4, timestamp: '2026-09-29T17:30:00Z', confidence: 81 },
-      { horizon: '+24h', hours: 24, lat: -69.92, lon: 13.31, uncertaintyRadiusNm: 4.1, timestamp: '2026-09-30T05:30:00Z', confidence: 72 },
-      { horizon: '+48h', hours: 48, lat: -70.04, lon: 12.38, uncertaintyRadiusNm: 7.0, timestamp: '2026-10-01T05:30:00Z', confidence: 59 },
-      { horizon: '+72h', hours: 72, lat: -70.16, lon: 11.45, uncertaintyRadiusNm: 10.0, timestamp: '2026-10-02T05:30:00Z', confidence: 47 },
+      { horizon: '+6h', hours: 6, lat: -65.31, lon: -64.98, uncertaintyRadiusNm: 1.8, timestamp: '2026-09-06T11:30:00Z', confidence: 85 },
+      { horizon: '+12h', hours: 12, lat: -65.41, lon: -65.11, uncertaintyRadiusNm: 2.7, timestamp: '2026-09-06T17:30:00Z', confidence: 80 },
+      { horizon: '+24h', hours: 24, lat: -65.62, lon: -65.37, uncertaintyRadiusNm: 4.4, timestamp: '2026-09-07T05:30:00Z', confidence: 71 },
+      { horizon: '+48h', hours: 48, lat: -66.03, lon: -65.88, uncertaintyRadiusNm: 7.2, timestamp: '2026-09-08T05:30:00Z', confidence: 58 },
+      { horizon: '+72h', hours: 72, lat: -66.44, lon: -66.39, uncertaintyRadiusNm: 10.5, timestamp: '2026-09-09T05:30:00Z', confidence: 45 },
     ],
   },
   {
-    id: 'ICB-ENDERBY-02',
-    name: 'Enderby Land Iceberg Block',
-    lat: -67.90,
-    lon: 52.40,
+    id: 'ICB-902-PINNACLE',
+    name: 'ICB-902 High Pinnacle Berg',
+    lat: -66.40,
+    lon: -67.20,
     sizeCategory: 'Medium',
-    estimatedLengthMeters: 1100,
-    estimatedWidthMeters: 550,
-    freeboardMeters: 22,
-    driftSpeedKnots: 1.4,
-    driftHeadingDeg: 275,
-    observationTime: '2026-09-29T07:10:00Z',
-    processingTime: '2026-09-29T07:28:00Z',
-    confidence: 85,
-    uncertaintyRadiusNm: 1.4,
+    estimatedLengthMeters: 920,
+    estimatedWidthMeters: 450,
+    freeboardMeters: 42,
+    driftSpeedKnots: 1.6,
+    driftHeadingDeg: 195,
+    observationTime: '2026-09-06T07:10:00Z',
+    processingTime: '2026-09-06T07:28:00Z',
+    confidence: 82,
+    uncertaintyRadiusNm: 1.5,
     source: 'Sentinel-1 SAR',
     isSynthetic: true,
     historicalTrack: [
-      { lat: -67.85, lon: 53.10, timestamp: '2026-09-28T06:00:00Z' },
-      { lat: -67.87, lon: 52.85, timestamp: '2026-09-28T18:00:00Z' },
-      { lat: -67.89, lon: 52.60, timestamp: '2026-09-29T00:00:00Z' },
-      { lat: -67.90, lon: 52.40, timestamp: '2026-09-29T07:10:00Z' },
+      { lat: -65.95, lon: -66.90, timestamp: '2026-09-05T06:00:00Z' },
+      { lat: -66.10, lon: -67.00, timestamp: '2026-09-05T18:00:00Z' },
+      { lat: -66.25, lon: -67.10, timestamp: '2026-09-06T00:00:00Z' },
+      { lat: -66.40, lon: -67.20, timestamp: '2026-09-06T07:10:00Z' },
     ],
     predictedTrajectory: [
-      { horizon: '+6h', hours: 6, lat: -67.92, lon: 52.05, uncertaintyRadiusNm: 2.0, timestamp: '2026-09-29T13:10:00Z', confidence: 80 },
-      { horizon: '+12h', hours: 12, lat: -67.94, lon: 51.70, uncertaintyRadiusNm: 3.0, timestamp: '2026-09-29T19:10:00Z', confidence: 74 },
-      { horizon: '+24h', hours: 24, lat: -67.98, lon: 51.00, uncertaintyRadiusNm: 4.8, timestamp: '2026-09-30T07:10:00Z', confidence: 63 },
-      { horizon: '+48h', hours: 48, lat: -68.06, lon: 49.60, uncertaintyRadiusNm: 8.2, timestamp: '2026-10-01T07:10:00Z', confidence: 49 },
-      { horizon: '+72h', hours: 72, lat: -68.14, lon: 48.20, uncertaintyRadiusNm: 11.8, timestamp: '2026-10-02T07:10:00Z', confidence: 36 },
+      { horizon: '+6h', hours: 6, lat: -66.55, lon: -67.28, uncertaintyRadiusNm: 2.1, timestamp: '2026-09-06T13:10:00Z', confidence: 79 },
+      { horizon: '+12h', hours: 12, lat: -66.71, lon: -67.36, uncertaintyRadiusNm: 3.1, timestamp: '2026-09-06T19:10:00Z', confidence: 73 },
+      { horizon: '+24h', hours: 24, lat: -67.02, lon: -67.52, uncertaintyRadiusNm: 5.0, timestamp: '2026-09-07T07:10:00Z', confidence: 62 },
+      { horizon: '+48h', hours: 48, lat: -67.64, lon: -67.84, uncertaintyRadiusNm: 8.5, timestamp: '2026-09-08T07:10:00Z', confidence: 48 },
+      { horizon: '+72h', hours: 72, lat: -68.25, lon: -68.16, uncertaintyRadiusNm: 12.0, timestamp: '2026-09-09T07:10:00Z', confidence: 35 },
     ],
   },
   {
-    id: 'ICB-PRYDZ-BAY-04',
-    name: 'Larsemann Approach Tabular',
-    lat: -68.60,
-    lon: 75.10,
+    id: 'ICB-841-TABULAR',
+    name: 'ICB-841 Weddell Shelf Calving',
+    lat: -61.80,
+    lon: -55.60,
     sizeCategory: 'Large',
-    estimatedLengthMeters: 3200,
-    estimatedWidthMeters: 1600,
-    freeboardMeters: 32,
-    driftSpeedKnots: 0.8,
-    driftHeadingDeg: 300,
-    observationTime: '2026-09-29T04:45:00Z',
-    processingTime: '2026-09-29T05:20:00Z',
-    confidence: 92,
-    uncertaintyRadiusNm: 0.9,
+    estimatedLengthMeters: 3100,
+    estimatedWidthMeters: 1850,
+    freeboardMeters: 31,
+    driftSpeedKnots: 0.9,
+    driftHeadingDeg: 345,
+    observationTime: '2026-09-06T04:45:00Z',
+    processingTime: '2026-09-06T05:20:00Z',
+    confidence: 91,
+    uncertaintyRadiusNm: 1.0,
     source: 'Sentinel-1 SAR',
     isSynthetic: true,
     historicalTrack: [
-      { lat: -68.72, lon: 75.40, timestamp: '2026-09-28T06:00:00Z' },
-      { lat: -68.68, lon: 75.30, timestamp: '2026-09-28T18:00:00Z' },
-      { lat: -68.64, lon: 75.20, timestamp: '2026-09-29T00:00:00Z' },
-      { lat: -68.60, lon: 75.10, timestamp: '2026-09-29T04:45:00Z' },
+      { lat: -62.15, lon: -55.45, timestamp: '2026-09-05T06:00:00Z' },
+      { lat: -62.03, lon: -55.50, timestamp: '2026-09-05T18:00:00Z' },
+      { lat: -61.92, lon: -55.55, timestamp: '2026-09-06T00:00:00Z' },
+      { lat: -61.80, lon: -55.60, timestamp: '2026-09-06T04:45:00Z' },
     ],
     predictedTrajectory: [
-      { horizon: '+6h', hours: 6, lat: -68.56, lon: 74.92, uncertaintyRadiusNm: 1.5, timestamp: '2026-09-29T10:45:00Z', confidence: 88 },
-      { horizon: '+12h', hours: 12, lat: -68.52, lon: 74.74, uncertaintyRadiusNm: 2.2, timestamp: '2026-09-29T16:45:00Z', confidence: 82 },
-      { horizon: '+24h', hours: 24, lat: -68.44, lon: 74.38, uncertaintyRadiusNm: 3.8, timestamp: '2026-09-30T04:45:00Z', confidence: 73 },
-      { horizon: '+48h', hours: 48, lat: -68.28, lon: 73.66, uncertaintyRadiusNm: 6.6, timestamp: '2026-10-01T04:45:00Z', confidence: 60 },
-      { horizon: '+72h', hours: 72, lat: -68.12, lon: 72.94, uncertaintyRadiusNm: 9.4, timestamp: '2026-10-02T04:45:00Z', confidence: 48 },
+      { horizon: '+6h', hours: 6, lat: -61.71, lon: -55.65, uncertaintyRadiusNm: 1.6, timestamp: '2026-09-06T10:45:00Z', confidence: 87 },
+      { horizon: '+12h', hours: 12, lat: -61.62, lon: -55.70, uncertaintyRadiusNm: 2.4, timestamp: '2026-09-06T16:45:00Z', confidence: 81 },
+      { horizon: '+24h', hours: 24, lat: -61.44, lon: -55.80, uncertaintyRadiusNm: 4.0, timestamp: '2026-09-07T04:45:00Z', confidence: 72 },
+      { horizon: '+48h', hours: 48, lat: -61.08, lon: -56.00, uncertaintyRadiusNm: 6.8, timestamp: '2026-09-08T04:45:00Z', confidence: 59 },
+      { horizon: '+72h', hours: 72, lat: -60.72, lon: -56.20, uncertaintyRadiusNm: 9.6, timestamp: '2026-09-09T04:45:00Z', confidence: 46 },
     ],
   },
   {
-    id: 'ICB-QUEEN-MAUD-03',
-    name: 'Queen Maud Offshore Floe',
-    lat: -68.70,
-    lon: 32.50,
-    sizeCategory: 'Medium',
-    estimatedLengthMeters: 780,
-    estimatedWidthMeters: 390,
-    freeboardMeters: 19,
-    driftSpeedKnots: 1.5,
-    driftHeadingDeg: 265,
-    observationTime: '2026-09-29T07:45:00Z',
-    processingTime: '2026-09-29T08:00:00Z',
-    confidence: 84,
-    uncertaintyRadiusNm: 1.6,
+    id: 'ICB-715-GROWLER',
+    name: 'ICB-715 Submerged Growler Swarm',
+    lat: -64.10,
+    lon: -62.30,
+    sizeCategory: 'Small',
+    estimatedLengthMeters: 180,
+    estimatedWidthMeters: 95,
+    freeboardMeters: 4,
+    driftSpeedKnots: 1.8,
+    driftHeadingDeg: 230,
+    observationTime: '2026-09-06T07:45:00Z',
+    processingTime: '2026-09-06T08:00:00Z',
+    confidence: 76,
+    uncertaintyRadiusNm: 2.1,
     source: 'Shipboard Marine Radar',
     isSynthetic: true,
     historicalTrack: [
-      { lat: -68.65, lon: 33.30, timestamp: '2026-09-28T06:00:00Z' },
-      { lat: -68.67, lon: 33.00, timestamp: '2026-09-28T18:00:00Z' },
-      { lat: -68.69, lon: 32.75, timestamp: '2026-09-29T00:00:00Z' },
-      { lat: -68.70, lon: 32.50, timestamp: '2026-09-29T07:45:00Z' },
+      { lat: -63.60, lon: -61.70, timestamp: '2026-09-05T06:00:00Z' },
+      { lat: -63.78, lon: -61.90, timestamp: '2026-09-05T18:00:00Z' },
+      { lat: -63.94, lon: -62.10, timestamp: '2026-09-06T00:00:00Z' },
+      { lat: -64.10, lon: -62.30, timestamp: '2026-09-06T07:45:00Z' },
     ],
     predictedTrajectory: [
-      { horizon: '+6h', hours: 6, lat: -68.71, lon: 32.10, uncertaintyRadiusNm: 2.2, timestamp: '2026-09-29T13:45:00Z', confidence: 78 },
-      { horizon: '+12h', hours: 12, lat: -68.72, lon: 31.70, uncertaintyRadiusNm: 3.2, timestamp: '2026-09-29T19:45:00Z', confidence: 71 },
-      { horizon: '+24h', hours: 24, lat: -68.74, lon: 30.90, uncertaintyRadiusNm: 5.2, timestamp: '2026-09-30T07:45:00Z', confidence: 58 },
-      { horizon: '+48h', hours: 48, lat: -68.78, lon: 29.30, uncertaintyRadiusNm: 8.8, timestamp: '2026-10-01T07:45:00Z', confidence: 44 },
-      { horizon: '+72h', hours: 72, lat: -68.82, lon: 27.70, uncertaintyRadiusNm: 12.5, timestamp: '2026-10-02T07:45:00Z', confidence: 32 },
+      { horizon: '+6h', hours: 6, lat: -64.24, lon: -62.51, uncertaintyRadiusNm: 2.8, timestamp: '2026-09-06T13:45:00Z', confidence: 70 },
+      { horizon: '+12h', hours: 12, lat: -64.38, lon: -62.71, uncertaintyRadiusNm: 4.1, timestamp: '2026-09-06T19:45:00Z', confidence: 61 },
+      { horizon: '+24h', hours: 24, lat: -64.67, lon: -63.12, uncertaintyRadiusNm: 6.4, timestamp: '2026-09-07T07:45:00Z', confidence: 49 },
+      { horizon: '+48h', hours: 48, lat: -65.23, lon: -63.95, uncertaintyRadiusNm: 10.2, timestamp: '2026-09-08T07:45:00Z', confidence: 35 },
+      { horizon: '+72h', hours: 72, lat: -65.80, lon: -64.77, uncertaintyRadiusNm: 14.5, timestamp: '2026-09-09T07:45:00Z', confidence: 22 },
     ],
   },
 ];
 
-// Synthetic Sea Ice Grid for East Antarctica Corridor (lat: -66 to -71.5, lon: 8 to 80)
+// Synthetic Sea Ice Grid (latitude: -59 to -68, longitude: -70 to -56)
 export const generateSyntheticSeaIce = (): SeaIceCell[] => {
   const cells: SeaIceCell[] = [];
   let index = 0;
 
-  for (let lat = -66.0; lat >= -71.5; lat -= 1.0) {
-    for (let lon = 8.0; lon <= 80.0; lon += 3.0) {
-      // Further south / closer to ice shelf = higher ice concentration
-      const southFactor = Math.min(1.0, Math.max(0.0, (-lat - 66.0) / 5.5));
-      // Distance to coast
-      let baseConcentration = southFactor * 70;
-      
-      // Outer ocean leads (north of -67.5°S)
-      if (lat > -67.5) baseConcentration *= 0.2;
-      // Schirmacher Oasis & Prydz Bay coastal ice
-      if (lat < -69.5 && (lon < 16.0 || lon > 70.0)) baseConcentration = Math.min(92, baseConcentration + 25);
+  for (let lat = -59.0; lat >= -68.5; lat -= 1.0) {
+    for (let lon = -70.0; lon <= -56.0; lon += 1.5) {
+      // Latitude factor: further south = higher ice concentration
+      const southFactor = Math.min(1.0, Math.max(0.0, (-lat - 59.0) / 9.0));
+      // Proximity to Weddell / Peninsula shelf (east is colder/pack ice)
+      const eastFactor = Math.min(1.0, Math.max(0.0, (lon + 70.0) / 14.0));
+
+      let baseConcentration = southFactor * 75 + eastFactor * 20;
+      // Drake passage open lead
+      if (lat > -60.5) baseConcentration *= 0.15;
+      // Marguerite bay coastal pack
+      if (lat < -66.5 && lon < -66.0) baseConcentration = Math.min(94, baseConcentration + 25);
 
       const concentration = Math.min(98, Math.max(0, Math.round(baseConcentration)));
 
       let stage: SeaIceCell['stage'] = 'Open Water';
-      if (concentration > 88) stage = 'Consolidated Fast Ice';
-      else if (concentration > 65) stage = 'Close Pack (70-80%)';
-      else if (concentration > 35) stage = 'Open Drift (40-60%)';
-      else if (concentration > 10) stage = 'Very Open Drift (10-30%)';
+      if (concentration > 90) stage = 'Consolidated Fast Ice';
+      else if (concentration > 70) stage = 'Close Pack (70-80%)';
+      else if (concentration > 40) stage = 'Open Drift (40-60%)';
+      else if (concentration > 15) stage = 'Very Open Drift (10-30%)';
 
-      const thickness = concentration > 65 ? 1.6 + Math.random() * 0.7 : concentration > 35 ? 0.8 + Math.random() * 0.4 : 0.2;
+      const thickness = concentration > 70 ? 1.8 + Math.random() * 0.8 : concentration > 40 ? 0.9 + Math.random() * 0.5 : 0.2;
 
       cells.push({
         id: `ice-cell-${index++}`,
@@ -323,13 +335,13 @@ export const generateSyntheticSeaIce = (): SeaIceCell[] => {
         stage,
         thicknessMeters: Number(thickness.toFixed(2)),
         driftVector: {
-          speedKnots: Number((0.5 + Math.random() * 0.7).toFixed(2)),
-          headingDeg: Math.round(270 + (Math.random() - 0.5) * 30),
+          speedKnots: Number((0.4 + Math.random() * 0.8).toFixed(2)),
+          headingDeg: Math.round(210 + (Math.random() - 0.5) * 40),
         },
         predictedConcentration72h: Math.min(99, Math.max(0, Math.round(concentration + (Math.random() - 0.4) * 8))),
-        confidence: Math.round(88 - southFactor * 15),
-        uncertainty: Math.round(12 + southFactor * 20),
-        timestamp: '2026-09-29T06:00:00Z',
+        confidence: Math.round(85 - southFactor * 18),
+        uncertainty: Math.round(15 + southFactor * 22),
+        timestamp: '2026-09-06T06:00:00Z',
       });
     }
   }
@@ -337,70 +349,115 @@ export const generateSyntheticSeaIce = (): SeaIceCell[] => {
   return cells;
 };
 
-// East Antarctic Weather & Ocean Currents
+// Ocean Currents & Wind Field
 export const SYNTHETIC_WEATHER: WeatherCondition = {
-  windSpeedKnots: 26.5,
-  windDirectionDeg: 140, // SE Katabatic wind off East Antarctic ice sheet
-  airTempC: -12.5,
-  seaTempC: -1.8,
-  waveHeightMeters: 2.8,
-  visibilityNm: 6.0,
-  barometricPressureHpa: 982.4,
-  timestamp: '2026-09-29T08:00:00Z',
+  windSpeedKnots: 28.5,
+  windDirectionDeg: 260, // Westerlies in Drake Passage
+  airTempC: -8.4,
+  seaTempC: -1.2,
+  waveHeightMeters: 3.4,
+  visibilityNm: 4.5,
+  barometricPressureHpa: 978.2,
+  timestamp: '2026-09-06T08:00:00Z',
   forecastHorizonHours: 72,
 };
 
 export const SYNTHETIC_OCEAN_CURRENTS: OceanCurrentCell[] = [
-  { lat: -68.0, lon: 12.0, currentSpeedKnots: 0.9, currentHeadingDeg: 270 }, // Coastal Antarctic Coastal Current (westward)
-  { lat: -68.0, lon: 35.0, currentSpeedKnots: 1.1, currentHeadingDeg: 265 },
-  { lat: -67.5, lon: 60.0, currentSpeedKnots: 1.0, currentHeadingDeg: 260 },
-  { lat: -68.5, lon: 76.0, currentSpeedKnots: 0.7, currentHeadingDeg: 285 }, // Prydz Bay gyre circulation
+  { lat: -60.0, lon: -64.0, currentSpeedKnots: 1.8, currentHeadingDeg: 75 }, // Antarctic Circumpolar Current
+  { lat: -62.0, lon: -62.0, currentSpeedKnots: 1.4, currentHeadingDeg: 60 },
+  { lat: -64.0, lon: -64.0, currentSpeedKnots: 0.9, currentHeadingDeg: 210 }, // Bransfield / Gerlache counter-drift
+  { lat: -66.0, lon: -67.0, currentSpeedKnots: 0.7, currentHeadingDeg: 200 },
+  { lat: -67.5, lon: -68.0, currentSpeedKnots: 0.5, currentHeadingDeg: 190 }, // Marguerite Bay coastal circulation
 ];
 
-// Synthetic Satellite Products for East Antarctic Corridor
+// Available Synthetic Satellite Products for the Decision Impact Engine
 export const INITIAL_SATELLITE_PRODUCTS: SatelliteProduct[] = [
   {
-    id: 'SAT-S1C-EA-20260929-0815',
+    id: 'SAT-S1C-20260906-0815',
     sensor: 'Sentinel-1C C-Band SAR Extra-Wide Swath',
-    acquisitionTime: '2026-09-29T08:15:00Z',
-    processingTime: '2026-09-29T08:35:00Z',
+    acquisitionTime: '2026-09-06T08:15:00Z',
+    processingTime: '2026-09-06T08:35:00Z',
     footprint: {
-      centerLat: -68.8,
-      centerLon: 74.5,
+      centerLat: -66.1,
+      centerLon: -67.0,
       radiusNm: 85,
-      description: 'Prydz Bay & Larsemann Hills Iceberg Convergence Corridor',
+      description: 'Adelaide Island & Marguerite Bay Iceberg Convergence Corridor',
     },
     productType: 'High-Res SAR Interferometric',
     sizeMb: 142.5,
     availability: 'Available for Downlink',
-    decisionImpactScore: 94, // HIGH! Overlaps critical route fork
+    decisionImpactScore: 92, // HIGH! Overlaps critical route fork
     priority: 'HIGH',
     impactExplanation:
-      'Recent high-resolution SAR observation intersects the ICB-D28-FRAG corridor and fast-ice lead near Bharati approach. Acquiring this observation reduces route risk uncertainty by ~46% and can confirm the primary recommended route.',
-    expectedUncertaintyReductionPct: 46,
-    spatialOverlapWithRoutePct: 90,
+      'Recent high-resolution SAR observation intersects the highly uncertain ICB-902 corridor and high-concentration sea ice pack near Rothera approach. Acquiring this observation reduces route risk uncertainty by ~44% and can alter the primary recommended route.',
+    expectedUncertaintyReductionPct: 44,
+    spatialOverlapWithRoutePct: 88,
     freshness: 'FRESH',
   },
   {
-    id: 'SAT-RCM2-EA-20260929-0740',
+    id: 'SAT-RCM2-20260906-0740',
     sensor: 'RADARSAT Constellation Mission (RCM-2)',
-    acquisitionTime: '2026-09-29T07:40:00Z',
-    processingTime: '2026-09-29T08:05:00Z',
+    acquisitionTime: '2026-09-06T07:40:00Z',
+    processingTime: '2026-09-06T08:05:00Z',
     footprint: {
-      centerLat: -69.8,
-      centerLon: 14.0,
+      centerLat: -64.5,
+      centerLon: -63.5,
       radiusNm: 60,
-      description: 'Schirmacher Oasis & Maitri Access Lead',
+      description: 'Anvers Island & Gerlache Strait Inshore Leads',
     },
     productType: 'Dual-Polarization Iceberg Profiling',
     sizeMb: 88.0,
     availability: 'Available for Downlink',
-    decisionImpactScore: 72,
+    decisionImpactScore: 68,
     priority: 'MEDIUM',
     impactExplanation:
-      'Provides updated freeboard and edge profiling for Schirmacher coastal icebergs. Confirms lead openings along the balanced route alternative.',
-    expectedUncertaintyReductionPct: 26,
-    spatialOverlapWithRoutePct: 65,
+      'Provides updated freeboard and edge profiling for iceberg B-22A fragment. Confirms lead openings in open drift ice along the balanced route alternative.',
+    expectedUncertaintyReductionPct: 24,
+    spatialOverlapWithRoutePct: 62,
+    freshness: 'FRESH',
+  },
+  {
+    id: 'SAT-CS2-20260906-0510',
+    sensor: 'CryoSat-2 SARIn Radar Altimeter',
+    acquisitionTime: '2026-09-06T05:10:00Z',
+    processingTime: '2026-09-06T06:15:00Z',
+    footprint: {
+      centerLat: -63.0,
+      centerLon: -58.0,
+      radiusNm: 120,
+      description: 'Weddell Sea Outer Marginal Ice Zone',
+    },
+    productType: 'Altimeter Sea Ice Freeboard',
+    sizeMb: 34.0,
+    availability: 'Available for Downlink',
+    decisionImpactScore: 35,
+    priority: 'LOW',
+    impactExplanation:
+      'Nadir altimeter track across Weddell Sea. Only peripheral overlap with the primary navigation corridor. Low expected decision change probability.',
+    expectedUncertaintyReductionPct: 8,
+    spatialOverlapWithRoutePct: 18,
+    freshness: 'AGING',
+  },
+  {
+    id: 'SAT-S3-20260906-0645',
+    sensor: 'Sentinel-3 SLSTR Thermal Infrared',
+    acquisitionTime: '2026-09-06T06:45:00Z',
+    processingTime: '2026-09-06T07:30:00Z',
+    footprint: {
+      centerLat: -60.5,
+      centerLon: -64.0,
+      radiusNm: 150,
+      description: 'Drake Passage South Sea Surface Temperature',
+    },
+    productType: 'SAR Wide Swath Ice Drift',
+    sizeMb: 62.0,
+    availability: 'Acquired',
+    decisionImpactScore: 28,
+    priority: 'LOW',
+    impactExplanation:
+      'Covers ice-free open ocean entry. Validates boundary water temperature. Minimal impact on polar route alternative selection.',
+    expectedUncertaintyReductionPct: 5,
+    spatialOverlapWithRoutePct: 14,
     freshness: 'FRESH',
   },
 ];

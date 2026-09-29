@@ -33,6 +33,8 @@ export const AiAssistantView: React.FC = () => {
     environmentalMode,
     gpsTracking,
     navigationOperationalState,
+    setActiveView,
+    replanRoutes,
   } = useApp();
 
   const [llmResult, setLlmResult] = useState<LlmExplanationResult | null>(null);
@@ -203,6 +205,8 @@ export const AiAssistantView: React.FC = () => {
         onAskQuery={handleAskQuery}
         llmResult={llmResult}
         isLoadingLlm={isLoadingLlm}
+        onNavigateToView={(view) => setActiveView(view as any)}
+        onReassessDecision={() => replanRoutes()}
       />
     </div>
   );
