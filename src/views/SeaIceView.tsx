@@ -18,6 +18,14 @@ import {
   Radio,
   FileText,
   ShieldAlert,
+  X,
+  Sliders,
+  ExternalLink,
+  Bot,
+  Activity,
+  ArrowRight,
+  TrendingUp,
+  MapPin,
 } from 'lucide-react';
 
 export const SeaIceView: React.FC = () => {
@@ -44,19 +52,29 @@ export const SeaIceView: React.FC = () => {
     fetchRealWeatherData,
     unifiedEnvironment,
     decisionConfidence,
+    mapLayers,
+    toggleMapLayer,
+    setActiveView,
+    mission,
   } = useApp();
 
   const [selectedCellId, setSelectedCellId] = useState<string>('ice-cell-0');
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'forecast' | 'change'>('forecast');
+
+  // Modals for technical details (keeping secondary information accessible)
+  const [showDataStatusModal, setShowDataStatusModal] = useState<boolean>(false);
+  const [showGridMatrixModal, setShowGridMatrixModal] = useState<boolean>(false);
+  const [showModelDetailsModal, setShowModelDetailsModal] = useState<boolean>(false);
 
   const horizons = [
-    { label: 'Now (T+0)', hours: 0, text: 'T+0' },
+    { label: 'NOW', hours: 0, text: 'T+0' },
     { label: '+6h', hours: 6, text: '+6h' },
     { label: '+12h', hours: 12, text: '+12h' },
-    { label: '+24h (+1d)', hours: 24, text: '+24h' },
-    { label: '+48h (+2d)', hours: 48, text: '+48h' },
-    { label: '+72h (+3d)', hours: 72, text: '+72h' },
+    { label: '+24h', hours: 24, text: '+24h' },
+    { label: '+48h', hours: 48, text: '+48h' },
+    { label: '+72h', hours: 72, text: '+72h' },
   ];
 
   // Auto-play interval for forecast progression
@@ -73,7 +91,18 @@ export const SeaIceView: React.FC = () => {
 
   const selectedCell = seaIceCells.find((c) => c.id === selectedCellId) || seaIceCells[0];
 
-  // Compute forecast timeline for selected cell across 0h, 6h, 12h, 24h, 48h, 72h
+  // Compute forecast field at horizon = 0 (Current T+0 baseline)
+  const baselineField = forecastSeaIceField(seaIceCells, weather, 0, 1.0);
+  const baselineCell = baselineField.find((c) => c.id === selectedCell?.id) || selectedCell;
+
+  // Compute forecast field at active horizon
+  const activeForecastField = forecastSeaIceField(seaIceCells, weather, forecastHorizonHours, 1.0);
+  const forecastedCell = activeForecastField.find((c) => c.id === selectedCell?.id) || selectedCell;
+
+  // Change relative to baseline T+0
+  const concentrationDelta = (forecastedCell?.concentrationPercent || 0) - (baselineCell?.concentrationPercent || 0);
+
+  // Compute forecast timeline for selected cell across 0h to 72h
   const cellTimeline = [0, 6, 12, 24, 48, 72].map((h) => {
     const forecastedField = forecastSeaIceField(seaIceCells, weather, h, 1.0);
     const targetCell = forecastedField.find((c) => c.id === selectedCell?.id) || selectedCell;
@@ -96,830 +125,616 @@ export const SeaIceView: React.FC = () => {
   );
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-y-auto bg-[#F5F7F7] font-sans">
-      {/* Top Header & Overview */}
-      <div className="px-6 py-4 bg-white border-b border-[#DCE7E7] shrink-0 shadow-xs">
-        <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-semibold text-[#075563] flex items-center gap-2.5">
-              <Layers className="w-6 h-6 text-[#2BB9BD]" />
-              Sea-Ice Concentration & Advection Forecasting
-            </h1>
-            <p className="text-sm text-[#63777B] mt-1 font-normal">
-              Copernicus Marine observations and kinetic advection model
-            </p>
-          </div>
-
-          {/* Environmental Data Mode Toggle (DEMO vs REAL) */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center bg-[#F5F7F7] p-1 rounded-lg border border-[#DCE7E7]">
-              <button
-                onClick={() => setEnvironmentalMode('DEMO')}
-                className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition flex items-center gap-1.5 ${
-                  environmentalMode === 'DEMO'
-                    ? 'bg-[#2BB9BD] text-white shadow-xs'
-                    : 'text-[#63777B] hover:text-[#18343A]'
-                }`}
-              >
-                <Radio className="w-3.5 h-3.5 text-white" />
-                Demo Mode
-              </button>
-              <button
-                onClick={() => setEnvironmentalMode('REAL')}
-                className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition flex items-center gap-1.5 ${
-                  environmentalMode === 'REAL'
-                    ? 'bg-[#075563] text-white shadow-xs'
-                    : 'text-[#63777B] hover:text-[#18343A]'
-                }`}
-              >
-                <Database className="w-3.5 h-3.5 text-white" />
-                Real Data
-              </button>
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#F5F7F7] font-sans">
+      {/* ------------------------------------------------------------- */}
+      {/* 1. COMPACT PAGE HEADER                                        */}
+      {/* ------------------------------------------------------------- */}
+      <header className="bg-white border-b border-[#DCE7E7] px-6 py-3 shrink-0 shadow-2xs z-20">
+        <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[#075563] text-white flex items-center justify-center shrink-0">
+              <Layers className="w-4 h-4 text-[#2BB9BD]" />
             </div>
-
-            <div className="flex items-center gap-2 text-xs">
-              <span className="px-3 py-1.5 rounded-lg bg-white border border-[#DCE7E7] text-[#63777B] font-medium">
-                Grid cells: <strong className="text-[#18343A]">{seaIceCells.length}</strong>
-              </span>
-              <span className="px-3 py-1.5 rounded-lg bg-[#E8F8F6] border border-[#DCE7E7] text-[#075563] font-semibold flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-[#2BB9BD]" />
-                Horizon: <strong className="text-[#075563]">{forecastHorizonHours === 0 ? 'T+0' : `+${forecastHorizonHours}h`}</strong>
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content Workspace */}
-      <div className="p-6 space-y-6 max-w-[1400px] w-full mx-auto flex-1 flex flex-col min-h-0">
-        {/* REAL DATA Provenance Card */}
-        {environmentalMode === 'REAL' && realSeaIceProvenance && (
-          <div className="bg-white text-[#252B30] p-3.5 rounded-[8px] border border-[#DCDAD4] shadow-subtle font-mono text-xs space-y-2">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E8E6E1] pb-2">
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-[4px] bg-[#EDF2ED] text-[#58725D] font-bold text-[10px] tracking-wider uppercase border border-[#58725D]/30">
-                  REAL OBSERVATION PIPELINE
+            <div>
+              <h1 className="text-base font-semibold text-[#075563] tracking-tight flex items-center gap-2">
+                Sea-Ice Forecast
+                <span className="hidden sm:inline text-xs text-[#526B7A] font-normal">
+                  (CRYO NAV SEA ICE)
                 </span>
-                <span className="font-bold text-[#252B30] text-sm flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-[#58725D]" />
-                  {realSeaIceProvenance.source}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-[#626A70]">
-                  Freshness: <strong className="text-[#252B30] px-1.5 py-0.5 rounded bg-[#EDF2ED] border border-[#DCDAD4]">{realSeaIceProvenance.freshnessState}</strong>
-                </span>
-                <button
-                  onClick={() => fetchRealSeaIceData()}
-                  disabled={isFetchingRealSeaIce}
-                  className="px-2.5 py-1 rounded-[6px] bg-[#3D5665] hover:bg-[#304652] text-white font-bold text-[11px] transition flex items-center gap-1"
-                >
-                  <RefreshCw className={`w-3 h-3 ${isFetchingRealSeaIce ? 'animate-spin' : ''}`} />
-                  Refresh Real Data
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-1">
-              <div className="bg-[#F5F3EE] p-2 rounded-[6px] border border-[#E8E6E1]">
-                <span className="text-[#626A70] text-[10px] uppercase font-bold block">Provider & Product</span>
-                <span className="text-[#252B30] font-bold">{realSeaIceProvenance.provider}</span>
-                <div className="text-[10px] text-[#8A9094] truncate">{realSeaIceProvenance.datasetId}</div>
-              </div>
-              <div className="bg-[#F5F3EE] p-2 rounded-[6px] border border-[#E8E6E1]">
-                <span className="text-[#626A70] text-[10px] uppercase font-bold block">Observation Time</span>
-                <span className="text-[#252B30] font-bold">{new Date(realSeaIceProvenance.observationTime).toUTCString()}</span>
-                <div className="text-[10px] text-[#8A9094]">Data Age: {realSeaIceProvenance.dataAgeHours} hours</div>
-              </div>
-              <div className="bg-[#F5F3EE] p-2 rounded-[6px] border border-[#E8E6E1]">
-                <span className="text-[#626A70] text-[10px] uppercase font-bold block">Grid Resolution & Level</span>
-                <span className="text-[#252B30] font-bold">10 km L4 Grid Analysis</span>
-                <div className="text-[10px] text-[#8A9094]">{realSeaIceProvenance.crs || 'EPSG:4326'}</div>
-              </div>
-              <div className="bg-[#F5F3EE] p-2 rounded-[6px] border border-[#E8E6E1]">
-                <span className="text-[#626A70] text-[10px] uppercase font-bold block">Spatial Coverage BBox</span>
-                <span className="text-[#252B30] font-bold">Antarctic Sector</span>
-                <div className="text-[10px] text-[#8A9094]">[{realSeaIceProvenance.bbox?.map(n => n.toFixed(1)).join(', ')}]</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* REAL OCEAN CURRENT DATA Provenance Card */}
-        {environmentalMode === 'REAL' && realOceanCurrentProvenance && (
-          <div className="bg-white text-[#252B30] p-3.5 rounded-[8px] border border-[#DCDAD4] shadow-subtle font-mono text-xs space-y-2">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E8E6E1] pb-2">
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-[4px] bg-[#EDF1F3] text-[#5C7280] font-bold text-[10px] tracking-wider uppercase border border-[#5C7280]/30">
-                  REAL OCEAN HYDRODYNAMICS PIPELINE
-                </span>
-                <span className="font-bold text-[#252B30] text-sm flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-[#5C7280]" />
-                  {realOceanCurrentProvenance.source}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-[#626A70]">
-                  Freshness: <strong className="text-[#252B30] px-1.5 py-0.5 rounded bg-[#EDF1F3] border border-[#DCDAD4]">{realOceanCurrentProvenance.freshnessState}</strong>
-                </span>
-                <button
-                  onClick={() => fetchRealOceanCurrentsData()}
-                  disabled={isFetchingRealOceanCurrents}
-                  className="px-2.5 py-1 rounded-[6px] bg-[#3D5665] hover:bg-[#304652] text-white font-bold text-[11px] transition flex items-center gap-1"
-                >
-                  <RefreshCw className={`w-3 h-3 ${isFetchingRealOceanCurrents ? 'animate-spin' : ''}`} />
-                  Refresh Ocean Currents
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-1">
-              <div className="bg-[#F5F3EE] p-2 rounded-[6px] border border-[#E8E6E1]">
-                <span className="text-[#626A70] text-[10px] uppercase font-bold block">Provider & Model</span>
-                <span className="text-[#252B30] font-bold">{realOceanCurrentProvenance.provider}</span>
-                <div className="text-[10px] text-[#8A9094] truncate">{realOceanCurrentProvenance.datasetId}</div>
-              </div>
-              <div className="bg-[#F5F3EE] p-2 rounded-[6px] border border-[#E8E6E1]">
-                <span className="text-[#626A70] text-[10px] uppercase font-bold block">Valid Time & Depth</span>
-                <span className="text-[#252B30] font-bold">{new Date(realOceanCurrentProvenance.observationTime).toUTCString()}</span>
-                <div className="text-[10px] text-[#8A9094]">Level: Surface (0.49m) • Data Age: {realOceanCurrentProvenance.dataAgeHours}h</div>
-              </div>
-              <div className="bg-[#F5F3EE] p-2 rounded-[6px] border border-[#E8E6E1]">
-                <span className="text-[#626A70] text-[10px] uppercase font-bold block">Grid Resolution & Category</span>
-                <span className="text-[#252B30] font-bold">8 km (1/12° NEMO Hydrodynamic)</span>
-                <div className="text-[10px] text-[#8A9094]">Category: {realOceanCurrentProvenance.category} ({realOceanCurrentProvenance.crs || 'EPSG:4326'})</div>
-              </div>
-              <div className="bg-[#F5F3EE] p-2 rounded-[6px] border border-[#E8E6E1]">
-                <span className="text-[#626A70] text-[10px] uppercase font-bold block">Spatial Coverage BBox</span>
-                <span className="text-[#252B30] font-bold">Antarctic Peninsula Sector</span>
-                <div className="text-[10px] text-[#8A9094]">[{realOceanCurrentProvenance.bbox?.map(n => n.toFixed(1)).join(', ')}]</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* REAL WEATHER FORECAST Provenance Card */}
-        {environmentalMode === 'REAL' && realWeatherProvenance && (
-          <div className="bg-white text-[#252B30] p-3.5 rounded-[8px] border border-[#DCDAD4] shadow-subtle font-mono text-xs space-y-2">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E8E6E1] pb-2">
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-[4px] bg-[#F5F0E5] text-[#9A7945] font-bold text-[10px] tracking-wider uppercase border border-[#9A7945]/30">
-                  REAL WEATHER FORECAST PIPELINE
-                </span>
-                <span className="font-bold text-[#252B30] text-sm flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-[#9A7945]" />
-                  {realWeatherProvenance.source}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-[#626A70]">
-                  Freshness: <strong className="text-[#252B30] px-1.5 py-0.5 rounded bg-[#F5F0E5] border border-[#DCDAD4]">{realWeatherProvenance.freshnessState}</strong>
-                </span>
-                <button
-                  onClick={() => fetchRealWeatherData()}
-                  disabled={isFetchingRealWeather}
-                  className="px-2.5 py-1 rounded-[6px] bg-[#3D5665] hover:bg-[#304652] text-white font-bold text-[11px] transition flex items-center gap-1"
-                >
-                  <RefreshCw className={`w-3 h-3 ${isFetchingRealWeather ? 'animate-spin' : ''}`} />
-                  Refresh Weather Data
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-1">
-              <div className="bg-[#F5F3EE] p-2 rounded-[6px] border border-[#E8E6E1]">
-                <span className="text-[#626A70] text-[10px] uppercase font-bold block">Access & Model</span>
-                <span className="text-[#252B30] font-bold">{realWeatherProvenance.provider}</span>
-                <div className="text-[10px] text-[#8A9094] truncate">{realWeatherProvenance.datasetId}</div>
-              </div>
-              <div className="bg-[#F5F3EE] p-2 rounded-[6px] border border-[#E8E6E1]">
-                <span className="text-[#626A70] text-[10px] uppercase font-bold block">Forecast Valid Time</span>
-                <span className="text-[#252B30] font-bold">{new Date(realWeatherProvenance.validTime).toUTCString()}</span>
-                <div className="text-[10px] text-[#8A9094]">Category: {realWeatherProvenance.category} (REAL FORECAST)</div>
-              </div>
-              <div className="bg-[#F5F3EE] p-2 rounded-[6px] border border-[#E8E6E1]">
-                <span className="text-[#626A70] text-[10px] uppercase font-bold block">Grid Resolution & Level</span>
-                <span className="text-[#252B30] font-bold">25 km (0.25° ECMWF IFS Model)</span>
-                <div className="text-[10px] text-amber-300">Init Run: {new Date(realWeatherProvenance.observationTime).toLocaleTimeString()}</div>
-              </div>
-              <div>
-                <span className="text-amber-400 text-[10px] uppercase font-bold block">Spatial Coverage BBox</span>
-                <span className="text-amber-100 font-bold">Antarctic Peninsula Sector</span>
-                <div className="text-[10px] text-amber-300">[{realWeatherProvenance.bbox?.map(n => n.toFixed(1)).join(', ')}]</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* REAL DATA Error Alert Banner (When Credentials missing or Auth/Server failed) */}
-        {environmentalMode === 'REAL' && (realSeaIceError || realOceanCurrentError || realWeatherError) && (
-          <div className="bg-[#F5EAEA] text-[#252B30] p-4 rounded-lg border border-[#A65B55]/40 shadow-xs font-mono text-xs space-y-2">
-            <div className="flex items-center justify-between border-b border-[#A65B55]/20 pb-2">
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="w-5 h-5 text-[#A65B55]" />
-                <span className="font-bold text-[#A65B55] text-sm uppercase tracking-wider">
-                  REAL ENVIRONMENTAL DATA UNAVAILABLE — NO DATA FABRICATION
-                </span>
-              </div>
-              <button
-                onClick={() => setEnvironmentalMode('DEMO')}
-                className="px-3 py-1 rounded bg-white hover:bg-[#F5F3EE] text-[#3D5665] border border-[#DCDAD4] font-bold text-xs transition shadow-xs"
-              >
-                Switch to DEMO MODE
-              </button>
-            </div>
-            <div className="space-y-1.5 text-[11px] text-[#252B30]">
-              {realSeaIceError && (
-                <p className="bg-white/80 p-2.5 rounded border border-[#A65B55]/30 text-[#A65B55] font-mono">
-                  [SEA ICE] {realSeaIceError}
-                </p>
-              )}
-              {realOceanCurrentError && (
-                <p className="bg-white/80 p-2.5 rounded border border-[#A65B55]/30 text-[#A65B55] font-mono">
-                  [OCEAN CURRENTS] {realOceanCurrentError}
-                </p>
-              )}
-              {realWeatherError && (
-                <p className="bg-white/80 p-2.5 rounded border border-[#A65B55]/30 text-[#A65B55] font-mono">
-                  [WEATHER FORECAST] {realWeatherError}
-                </p>
-              )}
-              <p className="text-[#626A70] text-[10px]">
-                CRYO NAV Security & Integrity Policy: Invalid or missing remote environmental observations/forecasts are rejected. The platform does NOT generate replacement synthetic observations or forecasts in REAL mode.
+              </h1>
+              <p className="text-xs text-[#526B7A]">
+                Visualize current sea-ice concentration and forecast movement across the mission area.
               </p>
             </div>
           </div>
-        )}
 
-        {/* Phase 3A — Environmental Data Status */}
-        {unifiedEnvironment && (
-          <div className="bg-[#FCFBF7] text-[#263238] p-5 rounded-xl border border-[#D4D1C7] shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E7E4DA] pb-3">
-              <div className="flex items-center gap-2.5">
-                <Database className="w-5 h-5 text-[#315E62]" />
-                <h2 className="text-base sm:text-lg font-semibold text-[#263238]">
-                  Environmental Data Status
-                </h2>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 text-xs">
-                  <span className="text-[#596267] font-medium">Overall quality:</span>
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                      unifiedEnvironment.overallQuality === 'VALID'
-                        ? 'bg-[#EAF0EB] text-[#52715B] border-[#52715B]/30'
-                        : unifiedEnvironment.overallQuality === 'PARTIAL'
-                        ? 'bg-[#F3EEE2] text-[#9A7945] border-[#9A7945]/30'
-                        : 'bg-[#F3E5E3] text-[#A45750] border-[#A45750]/30'
-                    }`}
-                  >
-                    {unifiedEnvironment.overallQuality}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs">
-                  <span className="text-[#596267] font-medium">Alignment:</span>
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                      unifiedEnvironment.alignmentStatus === 'ALIGNED'
-                        ? 'bg-[#E5ECEE] text-[#526F78] border-[#526F78]/30'
-                        : 'bg-[#F3EEE2] text-[#9A7945] border-[#9A7945]/30'
-                    }`}
-                  >
-                    {unifiedEnvironment.alignmentStatus}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Analysis Reference Time */}
-            <div className="flex items-center justify-between text-xs bg-[#F3F0E8] p-3 rounded-lg border border-[#D4D1C7]">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-[#315E62]" />
-                <span className="text-[#596267] font-medium">Analysis reference time:</span>
-                <span className="text-[#263238] font-semibold">{new Date(unifiedEnvironment.analysisTime).toUTCString()}</span>
-              </div>
-              <span className="text-xs text-[#596267]">
-                Mode: <strong className="text-[#315E62]">{unifiedEnvironment.mode}</strong>
-              </span>
-            </div>
-
-            {/* 4 Source Alignment Summary Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs pt-1">
-              {/* Sea Ice Card */}
-              <div className="bg-[#F3F0E8] p-4 rounded-xl border border-[#D4D1C7] space-y-2.5">
-                <div className="flex items-center justify-between border-b border-[#D4D1C7] pb-2">
-                  <span className="font-semibold text-sm text-[#263238]">Sea Ice</span>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border ${
-                    unifiedEnvironment.sources.seaIce.quality === 'VALID' ? 'bg-[#EAF0EB] text-[#52715B] border-[#52715B]/30' : 'bg-[#F3E5E3] text-[#A45750] border-[#A45750]/30'
-                  }`}>
-                    {unifiedEnvironment.sources.seaIce.quality}
-                  </span>
-                </div>
-                <div className="text-sm font-semibold text-[#315E62]">{unifiedEnvironment.sources.seaIce.sourceName}</div>
-                <div className="space-y-1.5 text-xs text-[#364148]">
-                  <div className="flex justify-between"><span className="text-[#596267] font-medium">Status</span><span className="font-semibold text-[#263238]">{unifiedEnvironment.sources.seaIce.temporalStatus}</span></div>
-                  <div className="flex justify-between"><span className="text-[#596267] font-medium">Valid time</span><span className="text-[#263238]">{unifiedEnvironment.sources.seaIce.validTime ? new Date(unifiedEnvironment.sources.seaIce.validTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</span></div>
-                  <div className="flex justify-between"><span className="text-[#596267] font-medium">Resolution</span><span className="text-[#263238]">{unifiedEnvironment.sources.seaIce.sourceResolution}</span></div>
-                  <div className="flex justify-between"><span className="text-[#596267] font-medium">Coverage</span><span className="text-[#263238]">{unifiedEnvironment.sources.seaIce.coverage}</span></div>
-                </div>
-              </div>
-
-              {/* Ocean Currents Card */}
-              <div className="bg-[#F3F0E8] p-4 rounded-xl border border-[#D4D1C7] space-y-2.5">
-                <div className="flex items-center justify-between border-b border-[#D4D1C7] pb-2">
-                  <span className="font-semibold text-sm text-[#263238]">Ocean Currents</span>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border ${
-                    unifiedEnvironment.sources.ocean.quality === 'VALID' ? 'bg-[#EAF0EB] text-[#52715B] border-[#52715B]/30' : 'bg-[#F3E5E3] text-[#A45750] border-[#A45750]/30'
-                  }`}>
-                    {unifiedEnvironment.sources.ocean.quality}
-                  </span>
-                </div>
-                <div className="text-sm font-semibold text-[#315E62]">{unifiedEnvironment.sources.ocean.sourceName}</div>
-                <div className="space-y-1.5 text-xs text-[#364148]">
-                  <div className="flex justify-between"><span className="text-[#596267] font-medium">Status</span><span className="font-semibold text-[#263238]">{unifiedEnvironment.sources.ocean.temporalStatus}</span></div>
-                  <div className="flex justify-between"><span className="text-[#596267] font-medium">Valid time</span><span className="text-[#263238]">{unifiedEnvironment.sources.ocean.validTime ? new Date(unifiedEnvironment.sources.ocean.validTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</span></div>
-                  <div className="flex justify-between"><span className="text-[#596267] font-medium">Resolution</span><span className="text-[#263238]">{unifiedEnvironment.sources.ocean.sourceResolution}</span></div>
-                  <div className="flex justify-between"><span className="text-[#596267] font-medium">Coverage</span><span className="text-[#263238]">{unifiedEnvironment.sources.ocean.coverage}</span></div>
-                </div>
-              </div>
-
-              {/* Iceberg Catalog Card */}
-              <div className="bg-[#F3F0E8] p-4 rounded-xl border border-[#D4D1C7] space-y-2.5">
-                <div className="flex items-center justify-between border-b border-[#D4D1C7] pb-2">
-                  <span className="font-semibold text-sm text-[#263238]">Iceberg Catalog</span>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border ${
-                    unifiedEnvironment.sources.icebergs.quality === 'VALID' ? 'bg-[#EAF0EB] text-[#52715B] border-[#52715B]/30' : 'bg-[#F3E5E3] text-[#A45750] border-[#A45750]/30'
-                  }`}>
-                    {unifiedEnvironment.sources.icebergs.quality}
-                  </span>
-                </div>
-                <div className="text-sm font-semibold text-[#315E62]">{unifiedEnvironment.sources.icebergs.sourceName}</div>
-                <div className="space-y-1.5 text-xs text-[#364148]">
-                  <div className="flex justify-between"><span className="text-[#596267] font-medium">Status</span><span className="font-semibold text-[#263238]">{unifiedEnvironment.sources.icebergs.temporalStatus}</span></div>
-                  <div className="flex justify-between"><span className="text-[#596267] font-medium">Latest obs</span><span className="text-[#263238]">{unifiedEnvironment.sources.icebergs.validTime ? new Date(unifiedEnvironment.sources.icebergs.validTime).toLocaleDateString() : 'N/A'}</span></div>
-                  <div className="flex justify-between"><span className="text-[#596267] font-medium">Resolution</span><span className="text-[#263238]">{unifiedEnvironment.sources.icebergs.sourceResolution}</span></div>
-                  <div className="flex justify-between"><span className="text-[#596267] font-medium">Coverage</span><span className="text-[#263238]">{unifiedEnvironment.sources.icebergs.coverage}</span></div>
-                </div>
-              </div>
-
-              {/* Weather Forecast Card */}
-              <div className="bg-[#F3F0E8] p-4 rounded-xl border border-[#D4D1C7] space-y-2.5">
-                <div className="flex items-center justify-between border-b border-[#D4D1C7] pb-2">
-                  <span className="font-semibold text-sm text-[#263238]">Weather Forecast</span>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border ${
-                    unifiedEnvironment.sources.weather.quality === 'VALID' ? 'bg-[#EAF0EB] text-[#52715B] border-[#52715B]/30' : 'bg-[#F3E5E3] text-[#A45750] border-[#A45750]/30'
-                  }`}>
-                    {unifiedEnvironment.sources.weather.quality}
-                  </span>
-                </div>
-                <div className="text-sm font-semibold text-[#315E62]">{unifiedEnvironment.sources.weather.sourceName}</div>
-                <div className="space-y-1.5 text-xs text-[#364148]">
-                  <div className="flex justify-between"><span className="text-[#596267] font-medium">Status</span><span className="font-semibold text-[#263238]">{unifiedEnvironment.sources.weather.temporalStatus}</span></div>
-                  <div className="flex justify-between"><span className="text-[#596267] font-medium">Forecast valid</span><span className="text-[#263238]">{unifiedEnvironment.sources.weather.validTime ? new Date(unifiedEnvironment.sources.weather.validTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</span></div>
-                  <div className="flex justify-between"><span className="text-[#596267] font-medium">Resolution</span><span className="text-[#263238]">{unifiedEnvironment.sources.weather.sourceResolution}</span></div>
-                  <div className="flex justify-between"><span className="text-[#596267] font-medium">Coverage</span><span className="text-[#263238]">{unifiedEnvironment.sources.weather.coverage}</span></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Spatial Alignment Metadata & CRS Section */}
-            <div className="pt-3 border-t border-[#E7E4DA] flex flex-col sm:flex-row sm:items-center justify-between text-xs text-[#596267] gap-2">
-              <div>
-                <span className="text-[#315E62] font-semibold">Spatial alignment:</span> Mission area: <span className="text-[#263238] font-medium">[{unifiedEnvironment.region.bbox.map(n => n.toFixed(1)).join(', ')}]</span> · Display CRS: <span className="text-[#263238] font-medium">{unifiedEnvironment.region.displayCrs}</span>
-              </div>
-              <div className="text-[#858C90] italic">
-                Source-native spatial resolutions preserved.
-              </div>
-            </div>
-
-            {/* Alignment Notices */}
-            {unifiedEnvironment.warnings.length > 0 && (
-              <div className="pt-3 border-t border-[#E7E4DA] space-y-2">
-                <div className="text-xs font-semibold text-[#9A7945] flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-[#9A7945]" /> Alignment notice
-                </div>
-                <div className="space-y-1.5 pl-2 text-xs text-[#364148]">
-                  {unifiedEnvironment.warnings.map((w, idx) => (
-                    <div key={idx} className="flex items-start gap-2 bg-[#F3EEE2] p-2.5 rounded-lg border border-[#9A7945]/20">
-                      <span className="text-[#9A7945] font-bold">•</span>
-                      <span className="leading-relaxed">{w}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Scientific Honesty Notice */}
-            <div className="text-xs text-[#626A70] bg-[#EFEEE9] p-2.5 rounded-lg border border-[#E8E6E1] italic">
-              "Environmental alignment evaluates temporal compatibility, spatial coverage, and source-native metadata. CRYO NAV preserves source-native metadata and evaluates compatibility before downstream modeling."
-            </div>
-          </div>
-        )}
-
-        {/* SEA-ICE CONFIDENCE CONTRIBUTION PANEL (Phase 4) */}
-        {decisionConfidence && (
-          <div className="bg-white text-[#252B30] p-3.5 rounded-lg border border-[#DCDAD4] shadow-xs font-mono text-xs space-y-2">
-            <div className="flex items-center justify-between border-b border-[#E8E6E1] pb-2">
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-[#58725D]" />
-                <span className="font-bold text-[#252B30] text-xs uppercase tracking-wider">
-                  SEA-ICE CONFIDENCE CONTRIBUTION
-                </span>
-              </div>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
-                decisionConfidence.overallLevel === 'HIGH' ? 'bg-[#EDF2ED] text-[#58725D] border-[#58725D]/30' :
-                decisionConfidence.overallLevel === 'MEDIUM' ? 'bg-[#E7EDF0] text-[#3D5665] border-[#3D5665]/30' :
-                decisionConfidence.overallLevel === 'LOW' ? 'bg-[#F5F0E5] text-[#9A7945] border-[#9A7945]/30' :
-                'bg-[#F5EAEA] text-[#A65B55] border-[#A65B55]/30'
-              }`}>
-                CONFIDENCE LEVEL: {decisionConfidence.overallLevel} ({decisionConfidence.confidenceScore}/100)
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-1">
-              <div className="bg-[#F5F3EE] p-2 rounded border border-[#E8E6E1]">
-                <span className="text-[#626A70] text-[10px] uppercase font-bold block">SOURCE PIPELINE</span>
-                <span className="text-[#3D5665] font-bold">{unifiedEnvironment?.sources.seaIce.sourceName}</span>
-                <div className="text-[10px] text-[#626A70]">{unifiedEnvironment?.sources.seaIce.provider}</div>
-              </div>
-              <div className="bg-[#F5F3EE] p-2 rounded border border-[#E8E6E1]">
-                <span className="text-[#626A70] text-[10px] uppercase font-bold block">TEMPORAL STATUS</span>
-                <span className="text-[#58725D] font-bold">{unifiedEnvironment?.sources.seaIce.temporalStatus}</span>
-                <div className="text-[10px] text-[#626A70]">{unifiedEnvironment?.sources.seaIce.timeDiffHours !== null ? `${unifiedEnvironment.sources.seaIce.timeDiffHours?.toFixed(1)} h offset` : 'Unknown'}</div>
-              </div>
-              <div className="bg-[#F5F3EE] p-2 rounded border border-[#E8E6E1]">
-                <span className="text-[#626A70] text-[10px] uppercase font-bold block">SPATIAL COVERAGE</span>
-                <span className="text-[#3D5665] font-bold">{unifiedEnvironment?.sources.seaIce.coverage}</span>
-                <div className="text-[10px] text-[#626A70]">Target Bounding Box</div>
-              </div>
-              <div className="bg-[#F5F3EE] p-2 rounded border border-[#E8E6E1]">
-                <span className="text-[#626A70] text-[10px] uppercase font-bold block">FORECAST UNCERTAINTY</span>
-                <span className="text-[#9A7945] font-bold">{forecastHorizonHours === 0 ? 'LOW (Nowcast)' : forecastHorizonHours <= 24 ? 'MODERATE (+24h)' : 'HIGH (+48h/+72h)'}</span>
-                <div className="text-[10px] text-[#626A70]">Grid cell variance: ±{(selectedCell?.uncertainty || 15).toFixed(0)}%</div>
-              </div>
-            </div>
-
-            <div className="text-[10px] text-[#626A70] pt-1.5 border-t border-[#E8E6E1] leading-snug italic font-sans">
-              Notice: Sea-ice confidence scores and grid cell uncertainties are decision-support heuristics and baseline operational assumptions. They are not statistically calibrated probability bounds.
-            </div>
-          </div>
-        )}
-        {/* Interactive Map Container (Primary Focus - Large Workspace) */}
-        <div className="w-full flex flex-col h-[620px] min-h-[520px] relative overflow-hidden rounded-lg border border-[#DCDAD4] bg-[#EFEEE9] shadow-xs shrink-0">
-          {/* Interactive Leaflet Map in Sea-Ice Mode */}
-          <AntarcticMap mode="seaice" selectedCellId={selectedCellId} onCellSelect={(id) => setSelectedCellId(id)} />
-
-          {/* Top Map Overlay: Forecast Horizon Selector Bar */}
-          <div className="absolute top-3 left-3 right-3 z-[1000] flex flex-wrap items-center justify-between gap-2 bg-white/95 text-[#252B30] p-2 rounded-md border border-[#DCDAD4] shadow-sm backdrop-blur-xs font-mono text-xs select-none">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-[#626A70] font-bold uppercase tracking-wider hidden sm:inline mr-1">
-                Forecast Horizon:
-              </span>
-              <div className="flex items-center gap-1 flex-wrap">
-                {horizons.map((h) => {
-                  const isActive = forecastHorizonHours === h.hours;
-                  return (
-                    <button
-                      key={h.hours}
-                      onClick={() => {
-                        setForecastHorizonHours(h.hours);
-                        setIsPlaying(false);
-                      }}
-                      className={`px-2.5 py-1 rounded text-[11px] font-bold transition flex items-center gap-1 ${
-                        isActive
-                          ? 'bg-[#3D5665] text-white shadow-xs'
-                          : 'bg-[#F5F3EE] text-[#626A70] hover:bg-[#EFEEE9] border border-[#DCDAD4]'
-                      }`}
-                    >
-                      {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
-                      {h.text}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Play / Pause Animation Control */}
-            <div className="flex items-center gap-1">
+          {/* Quick Context & Status Badges */}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <div className="flex items-center gap-1.5 bg-[#F5F7F7] px-2.5 py-1 rounded-md border border-[#DCE7E7]">
+              <span className="text-[11px] text-[#526B7A]">Data mode:</span>
               <button
-                onClick={() => setIsPlaying((prev) => !prev)}
-                className={`px-3 py-1 rounded text-[11px] font-bold tracking-wider uppercase transition flex items-center gap-1.5 border ${
+                onClick={() => setEnvironmentalMode(environmentalMode === 'REAL' ? 'DEMO' : 'REAL')}
+                className={`px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer ${
+                  environmentalMode === 'REAL'
+                    ? 'bg-[#EEF4EF] text-[#2C6E49] border-[#D5E4D7]'
+                    : 'bg-[#FEF9C3] text-[#A16207] border-[#FEF08A]'
+                }`}
+                title="Click to toggle Real / Demo data mode"
+              >
+                {environmentalMode === 'REAL' ? '● REAL DATA' : '● DEMO MODE'}
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowDataStatusModal(true)}
+              className="px-2.5 py-1 bg-white hover:bg-[#F0F4F4] border border-[#DCE7E7] text-[#075563] text-xs rounded-md font-medium transition flex items-center gap-1 cursor-pointer"
+            >
+              <Database className="w-3.5 h-3.5 text-[#075563]" />
+              <span>Data Status</span>
+              <span className="w-2 h-2 rounded-full bg-[#2C6E49] ml-0.5"></span>
+            </button>
+
+            <button
+              onClick={() => setShowModelDetailsModal(true)}
+              className="px-2.5 py-1 bg-white hover:bg-[#F0F4F4] border border-[#DCE7E7] text-[#075563] text-xs rounded-md font-medium transition flex items-center gap-1 cursor-pointer"
+            >
+              <Info className="w-3.5 h-3.5 text-[#075563]" />
+              <span>Model & Assumptions</span>
+            </button>
+
+            <button
+              onClick={() => setShowGridMatrixModal(true)}
+              className="px-2.5 py-1 bg-white hover:bg-[#F0F4F4] border border-[#DCE7E7] text-[#075563] text-xs rounded-md font-medium transition flex items-center gap-1 cursor-pointer"
+            >
+              <Sliders className="w-3.5 h-3.5 text-[#075563]" />
+              <span>Regional Grid ({seaIceCells.length})</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* ------------------------------------------------------------- */}
+      {/* 2. COMPACT MISSION CONTEXT BAR                                */}
+      {/* ------------------------------------------------------------- */}
+      <div className="bg-white border-b border-[#DCE7E7] px-6 py-1.5 text-xs text-[#526B7A] flex items-center justify-between shrink-0 shadow-2xs">
+        <div className="flex items-center gap-2 overflow-hidden text-ellipsis whitespace-nowrap">
+          <span className="font-medium text-[#18343A]">Current mission:</span>
+          <span className="text-[#18343A] font-medium">{mission.title || 'Antarctic Voyage'}</span>
+          <span>·</span>
+          <span>Vessel: {selectedVessel.name} ({selectedVessel.iceClass.split(' ')[0]})</span>
+          <span>·</span>
+          <span className="text-[#075563] font-medium">Region: Antarctic Peninsula Sector</span>
+        </div>
+
+        <div className="flex items-center gap-2 text-[11px] shrink-0">
+          <span>Confidence:</span>
+          <span className="font-semibold text-[#18343A]">
+            {decisionConfidence?.overallLevel || 'MEDIUM'} ({decisionConfidence?.confidenceScore || 75}/100)
+          </span>
+        </div>
+      </div>
+
+      {/* ------------------------------------------------------------- */}
+      {/* 3. MAP-FIRST PRIMARY WORKSPACE (65-75% Area)                  */}
+      {/* ------------------------------------------------------------- */}
+      <main className="flex-1 flex flex-col lg:flex-row p-4 gap-4 overflow-hidden max-w-[1600px] w-full mx-auto">
+        {/* Central Map & Forecast Timeline Workspace */}
+        <div className="flex-1 flex flex-col bg-white rounded-xl border border-[#DCE7E7] shadow-2xs overflow-hidden">
+          {/* Map Container */}
+          <div className="flex-1 relative min-h-[440px] bg-[#EFEEE9]">
+            <AntarcticMap
+              mode="seaice"
+              selectedCellId={selectedCellId}
+              onCellSelect={(id) => setSelectedCellId(id)}
+            />
+
+            {/* Map Layer Controls Floating Overlay */}
+            <div className="absolute top-3 right-3 z-[1000] bg-white/95 text-[#18343A] p-2.5 rounded-lg border border-[#DCE7E7] shadow-sm backdrop-blur-xs text-xs space-y-1.5 select-none max-w-[200px]">
+              <div className="text-[10px] font-semibold uppercase text-[#526B7A] tracking-wider mb-1">
+                Map Layers
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium hover:text-[#075563]">
+                <input
+                  type="checkbox"
+                  checked={mapLayers.seaIce}
+                  onChange={() => toggleMapLayer('seaIce')}
+                  className="rounded text-[#075563] focus:ring-[#075563]"
+                />
+                <span>Sea-Ice Concentration</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium hover:text-[#075563]">
+                <input
+                  type="checkbox"
+                  checked={mapLayers.routes}
+                  onChange={() => toggleMapLayer('routes')}
+                  className="rounded text-[#075563] focus:ring-[#075563]"
+                />
+                <span>Active Route</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium hover:text-[#075563]">
+                <input
+                  type="checkbox"
+                  checked={mapLayers.icebergs}
+                  onChange={() => toggleMapLayer('icebergs')}
+                  className="rounded text-[#075563] focus:ring-[#075563]"
+                />
+                <span>Iceberg Observations</span>
+              </label>
+            </div>
+
+            {/* Map Legend Floating Overlay */}
+            <div className="absolute bottom-3 left-3 z-[1000] bg-white/95 text-[#18343A] px-3 py-2 rounded-lg border border-[#DCE7E7] text-[11px] shadow-sm backdrop-blur-xs flex flex-wrap items-center gap-3 select-none">
+              <span className="text-[10px] font-semibold uppercase text-[#526B7A]">Concentration:</span>
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-sky-600 border border-sky-400"></span>
+                <span>0% Open</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-sky-400 border border-sky-200"></span>
+                <span>25% Low</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-indigo-500 border border-indigo-300"></span>
+                <span>50% Medium</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-indigo-700 border border-indigo-500"></span>
+                <span>75% High</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-slate-100 border border-slate-300"></span>
+                <span className="font-semibold">100% Fast Ice</span>
+              </div>
+            </div>
+
+            {/* Timestep Indicator Floating Overlay */}
+            <div className="absolute top-3 left-3 z-[1000] bg-[#075563] text-white px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm flex items-center gap-2">
+              <Clock className="w-3.5 h-3.5 text-[#2BB9BD]" />
+              <span>
+                Forecast: {forecastHorizonHours === 0 ? 'NOW (T+0)' : `+${forecastHorizonHours}h`}
+              </span>
+            </div>
+          </div>
+
+          {/* Forecast Timeline & Controls Toolbar */}
+          <div className="bg-white border-t border-[#DCE7E7] p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+            {/* Forecast Horizons Step Buttons */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-medium text-[#526B7A] mr-1">Horizon:</span>
+              {horizons.map((h) => {
+                const isActive = forecastHorizonHours === h.hours;
+                return (
+                  <button
+                    key={h.hours}
+                    onClick={() => {
+                      setForecastHorizonHours(h.hours);
+                      setIsPlaying(false);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                      isActive
+                        ? 'bg-[#075563] text-white shadow-2xs'
+                        : 'bg-[#F5F7F7] hover:bg-[#E5E9E9] text-[#075563] border border-[#DCE7E7]'
+                    }`}
+                  >
+                    {h.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Playback Controls & Mode Toggle */}
+            <div className="flex items-center gap-3 self-end sm:self-auto">
+              {/* View Mode (Forecast vs Change) */}
+              <div className="flex items-center bg-[#F5F7F7] p-0.5 rounded-lg border border-[#DCE7E7] text-xs">
+                <button
+                  onClick={() => setViewMode('forecast')}
+                  className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
+                    viewMode === 'forecast' ? 'bg-[#075563] text-white' : 'text-[#526B7A]'
+                  }`}
+                >
+                  Forecast
+                </button>
+                <button
+                  onClick={() => setViewMode('change')}
+                  className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
+                    viewMode === 'change' ? 'bg-[#075563] text-white' : 'text-[#526B7A]'
+                  }`}
+                >
+                  Change (Δ %)
+                </button>
+              </div>
+
+              {/* Play / Pause */}
+              <button
+                onClick={() => setIsPlaying(!isPlaying)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-2xs ${
                   isPlaying
-                    ? 'bg-[#9A7945] hover:bg-[#856738] text-white border-[#9A7945] shadow-xs'
-                    : 'bg-[#3D5665] hover:bg-[#304652] text-white border-[#3D5665] shadow-xs'
+                    ? 'bg-[#A16207] text-white'
+                    : 'bg-[#075563] text-white hover:bg-[#05434F]'
                 }`}
               >
                 {isPlaying ? (
                   <>
-                    <Pause className="w-3.5 h-3.5 fill-current" /> Pause
+                    <Pause className="w-3.5 h-3.5" /> Pause
                   </>
                 ) : (
                   <>
-                    <Play className="w-3.5 h-3.5 fill-current" /> Play Forecast
+                    <Play className="w-3.5 h-3.5" /> Play Forecast
                   </>
                 )}
               </button>
+
               {forecastHorizonHours !== 0 && (
                 <button
                   onClick={() => {
                     setForecastHorizonHours(0);
                     setIsPlaying(false);
                   }}
-                  title="Reset to Now (T+0)"
-                  className="p-1 rounded bg-[#F5F3EE] hover:bg-[#EFEEE9] text-[#626A70] border border-[#DCDAD4]"
+                  title="Reset to NOW (T+0)"
+                  className="p-1.5 rounded-lg bg-[#F5F7F7] hover:bg-[#E5E9E9] text-[#075563] border border-[#DCE7E7] cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
           </div>
-
-          {/* Bottom Map Overlay: WMO Antarctic Sea-Ice Concentration Legend */}
-          <div className="absolute bottom-4 left-4 z-[1000] bg-white/95 text-[#252B30] px-3 py-2 rounded border border-[#DCDAD4] text-[10px] font-mono shadow-sm backdrop-blur-xs flex flex-wrap items-center gap-3 select-none">
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-sky-700 border border-sky-400"></span>
-              <span>Open Water (&lt;10%)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-cyan-600 border border-cyan-300"></span>
-              <span>Very Open Drift (10-39%)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-sky-400 border border-sky-200"></span>
-              <span>Open/Close Pack (40-69%)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-sky-200 border border-white"></span>
-              <span>Very Close Pack (70-89%)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-slate-100 border border-slate-300"></span>
-              <span className="font-bold text-[#252B30]">Fast Ice (90-100%)</span>
-            </div>
-            <div className="flex items-center gap-1.5 pl-2 border-l border-[#DCDAD4]">
-              <span className="w-3 h-0.5 bg-[#3D5665]"></span>
-              <span>Drift Vector</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full border border-dashed border-[#3D5665] bg-[#3D5665]/10"></span>
-              <span>Uncertainty (±%)</span>
-            </div>
-          </div>
         </div>
 
-        {/* Selected Cell Modeling Inspector & Forecast Progression Timeline */}
-        {selectedCell && (
-          <div className="bg-white p-4 rounded-lg border border-slate-200 space-y-4 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-3 gap-2">
+        {/* ------------------------------------------------------------- */}
+        {/* 4. SELECTED LOCATION INSPECTOR SIDE PANEL                      */}
+        {/* ------------------------------------------------------------- */}
+        <aside className="w-full lg:w-[360px] bg-white rounded-xl border border-[#DCE7E7] p-4 flex flex-col justify-between space-y-4 shadow-2xs overflow-y-auto shrink-0">
+          <div>
+            <div className="flex items-center justify-between border-b border-[#E5E9E9] pb-3">
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-base font-bold text-slate-900 font-mono">{selectedCell.id}</span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200 font-bold">
-                    ({Math.abs(selectedCell.lat).toFixed(1)}°S, {Math.abs(selectedCell.lon).toFixed(1)}°W)
-                  </span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 font-bold">
-                    HORIZON: {forecastHorizonHours === 0 ? 'T+0' : `+${forecastHorizonHours}h`}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 font-mono mt-0.5">
-                  WMO Classification: <strong>{selectedCell.stage}</strong>
-                </p>
+                <span className="text-[10px] font-semibold uppercase text-[#526B7A]">Selected Location</span>
+                <h3 className="text-sm font-semibold text-[#075563] flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4 text-[#2BB9BD]" />
+                  {selectedCell?.id || 'Cell 0'}
+                </h3>
               </div>
-
-              <div className="flex items-center gap-3 font-mono text-xs text-right">
-                <div>
-                  <span className="text-slate-500 text-[10px]">Vessel Hull Rating</span>
-                  <div className="text-xs font-bold text-slate-900">
-                    Limit: {selectedVessel.maxSeaIceConcentrationPercent}% Pack
-                  </div>
-                </div>
-                <div className="pl-3 border-l border-slate-200">
-                  <span className="text-slate-500 text-[10px]">Feasibility Status</span>
-                  <div
-                    className={`text-xs font-bold ${
-                      selectedCell.concentrationPercent > selectedVessel.maxSeaIceConcentrationPercent
-                        ? 'text-red-700'
-                        : selectedCell.concentrationPercent > 50
-                        ? 'text-amber-700'
-                        : 'text-emerald-700'
-                    }`}
-                  >
-                    {selectedCell.concentrationPercent > selectedVessel.maxSeaIceConcentrationPercent
-                      ? 'EXCEEDS RATING'
-                      : selectedCell.concentrationPercent > 50
-                      ? 'CAUTION: SPEED LOSS'
-                      : 'FEASIBLE'}
-                  </div>
-                </div>
-              </div>
+              <span className="text-xs text-[#526B7A] font-medium bg-[#F5F7F7] px-2 py-1 rounded border border-[#DCE7E7]">
+                {selectedCell ? `${Math.abs(selectedCell.lat).toFixed(1)}°S, ${Math.abs(selectedCell.lon).toFixed(1)}°W` : ''}
+              </span>
             </div>
 
-            {/* Modeling Values Grid for Selected Cell */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-xs">
-              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 shadow-xs">
-                <div className="text-[10px] text-slate-500 font-semibold uppercase">
-                  {forecastHorizonHours === 0 ? 'Current Concentration (T0)' : `Predicted Concentration (+${forecastHorizonHours}h)`}
+            {/* Current vs Forecast Comparison Box */}
+            <div className="mt-3 bg-[#F5F7F7] p-3 rounded-xl border border-[#DCE7E7] space-y-3">
+              <div className="flex items-center justify-between text-xs text-[#526B7A]">
+                <span>WMO Stage:</span>
+                <strong className="text-[#18343A]">{forecastedCell?.stage || 'Open Pack'}</strong>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                <div className="bg-white p-2.5 rounded-lg border border-[#E5E9E9]">
+                  <span className="text-[10px] text-[#526B7A] block">Current (T+0)</span>
+                  <span className="text-base font-semibold text-[#18343A]">
+                    {baselineCell?.concentrationPercent}%
+                  </span>
                 </div>
-                <div
-                  className={`font-bold mt-0.5 text-base ${
-                    selectedCell.concentrationPercent > 70
-                      ? 'text-amber-700'
-                      : selectedCell.concentrationPercent > 40
-                      ? 'text-blue-700'
-                      : 'text-emerald-700'
+
+                <div className="bg-white p-2.5 rounded-lg border border-[#E5E9E9]">
+                  <span className="text-[10px] text-[#526B7A] block">
+                    Forecast ({forecastHorizonHours === 0 ? 'T+0' : `+${forecastHorizonHours}h`})
+                  </span>
+                  <span className="text-base font-semibold text-[#075563]">
+                    {forecastedCell?.concentrationPercent}%
+                  </span>
+                </div>
+              </div>
+
+              {/* Change Indicator */}
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-[#E5E9E9]">
+                <span className="text-[#526B7A]">Change from current:</span>
+                <span
+                  className={`font-bold px-2 py-0.5 rounded text-xs ${
+                    concentrationDelta > 0
+                      ? 'bg-[#FEF9C3] text-[#A16207]'
+                      : concentrationDelta < 0
+                      ? 'bg-[#EEF4EF] text-[#2C6E49]'
+                      : 'bg-white text-[#526B7A]'
                   }`}
                 >
-                  {selectedCell.concentrationPercent}%
-                </div>
-                <div className="text-slate-600 text-[11px]">{selectedCell.stage}</div>
-              </div>
-
-              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 shadow-xs">
-                <div className="text-[10px] text-slate-500 font-semibold uppercase">Thickness & Ice Age</div>
-                <div className="text-slate-900 font-bold mt-0.5 text-base">
-                  {selectedCell.thicknessMeters} m
-                </div>
-                <div className="text-slate-600 text-xs">Estimated Age: {selectedCell.ageDays ?? 14} days</div>
-              </div>
-
-              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 shadow-xs">
-                <div className="text-[10px] text-slate-500 font-semibold uppercase">Drift Advection</div>
-                <div className="text-emerald-700 font-bold mt-0.5 text-base">
-                  {selectedCell.driftVector.speedKnots} kts
-                </div>
-                <div className="text-slate-600 text-xs">Heading: {selectedCell.driftVector.headingDeg}°</div>
-              </div>
-
-              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 shadow-xs">
-                <div className="text-[10px] text-slate-500 font-semibold uppercase">Forecast Uncertainty</div>
-                <div className="text-blue-700 font-bold mt-0.5 text-base">
-                  ±{selectedCell.uncertainty}%
-                </div>
-                <div className="text-slate-500 text-[10px]">Confidence: {selectedCell.confidence}%</div>
+                  {concentrationDelta > 0 ? `+${concentrationDelta}%` : `${concentrationDelta}%`}
+                </span>
               </div>
             </div>
 
-            {/* Selected Cell Forecast Progression Timeline Table */}
-            <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between text-xs font-mono text-slate-900 font-bold">
-                <span className="flex items-center gap-1.5">
-                  <Compass className="w-3.5 h-3.5 text-slate-700" /> Cell {selectedCell.id} Forecast Progression (+0h to +72h)
+            {/* Movement & Uncertainty Breakdown */}
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <div className="bg-[#F5F7F7] p-2.5 rounded-lg border border-[#DCE7E7]">
+                <span className="text-[10px] text-[#526B7A] block font-medium">Drift Vector</span>
+                <span className="text-[#18343A] font-semibold block text-sm mt-0.5">
+                  {forecastedCell?.driftVector?.speedKnots || 1.0} kts
                 </span>
-                <span className="text-[10px] text-slate-500">Thermodynamic & Advection Time Progression</span>
+                <span className="text-[10px] text-[#526B7A]">
+                  Heading {forecastedCell?.driftVector?.headingDeg || 180}°
+                </span>
               </div>
 
-              <div className="divide-y divide-slate-200 text-xs font-mono border border-slate-200 rounded-md bg-white overflow-hidden shadow-xs">
-                <div className="grid grid-cols-5 p-2 text-[10px] text-slate-600 font-bold bg-slate-100 uppercase">
-                  <div>Horizon</div>
-                  <div>Pred Concentration</div>
-                  <div>WMO Stage</div>
-                  <div>Uncertainty</div>
-                  <div>Feasibility Rating</div>
-                </div>
+              <div className="bg-[#F5F7F7] p-2.5 rounded-lg border border-[#DCE7E7]">
+                <span className="text-[10px] text-[#526B7A] block font-medium">Uncertainty</span>
+                <span className="text-[#075563] font-semibold block text-sm mt-0.5">
+                  ±{forecastedCell?.uncertainty || 15}%
+                </span>
+                <span className="text-[10px] text-[#526B7A]">
+                  Confidence: {forecastedCell?.confidence || 80}%
+                </span>
+              </div>
+            </div>
 
+            {/* Forecast Progression Timeline for Selected Cell */}
+            <div className="mt-4 space-y-2">
+              <span className="text-xs font-semibold text-[#075563] block">
+                Forecast Progression (+0h to +72h)
+              </span>
+
+              <div className="divide-y divide-[#E5E9E9] text-xs border border-[#DCE7E7] rounded-xl bg-white overflow-hidden">
                 {cellTimeline.map((item) => {
-                  const isSelectedRow = forecastHorizonHours === item.hours;
-                  const isOverLimit = item.concentrationPercent > selectedVessel.maxSeaIceConcentrationPercent;
-
+                  const isSelected = forecastHorizonHours === item.hours;
                   return (
                     <div
                       key={item.horizon}
                       onClick={() => setForecastHorizonHours(item.hours)}
-                      className={`grid grid-cols-5 p-2.5 cursor-pointer transition ${
-                        isSelectedRow
-                          ? 'bg-amber-50 font-bold text-amber-950 border-l-4 border-amber-500'
-                          : 'hover:bg-slate-50 text-slate-800'
+                      className={`px-3 py-2 flex items-center justify-between cursor-pointer transition ${
+                        isSelected ? 'bg-[#EEF4EF] font-semibold text-[#075563]' : 'hover:bg-[#F5F7F7] text-[#18343A]'
                       }`}
                     >
-                      <div className="text-blue-700 font-bold">{item.horizon}</div>
-                      <div
-                        className={`font-bold ${
-                          item.concentrationPercent > 70
-                            ? 'text-amber-700'
-                            : item.concentrationPercent > 40
-                            ? 'text-blue-700'
-                            : 'text-emerald-700'
-                        }`}
-                      >
-                        {item.concentrationPercent}%
-                      </div>
-                      <div>{item.stage}</div>
-                      <div>±{item.uncertainty}%</div>
-                      <div
-                        className={`font-bold ${
-                          isOverLimit ? 'text-red-700' : item.concentrationPercent > 50 ? 'text-amber-700' : 'text-emerald-700'
-                        }`}
-                      >
-                        {isOverLimit ? 'EXCEEDS RATING' : item.concentrationPercent > 50 ? 'SPEED LOSS' : 'FEASIBLE'}
-                      </div>
+                      <span className="text-[#075563] font-medium">{item.horizon}</span>
+                      <span>{item.concentrationPercent}% ({item.stage.split(' ')[0]})</span>
+                      <span className="text-[10px] text-[#526B7A]">±{item.uncertainty}%</span>
                     </div>
                   );
                 })}
               </div>
             </div>
           </div>
-        )}
 
-        {/* Evaluated Regional Grid Cells Table (100 Cells) - Secondary Detailed View */}
-        <div className="bg-white rounded-lg border border-slate-200 space-y-3 p-4 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-3 gap-2 font-mono text-xs">
-            <span className="font-bold text-slate-900 uppercase">
-              Evaluated Regional Grid Cells Matrix ({seaIceCells.length})
-            </span>
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Filter cells or stage..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1 text-xs border border-slate-300 rounded bg-slate-50 focus:bg-white text-slate-800 w-48 font-mono"
-              />
+          {/* Contextual Action Triggers */}
+          <div className="pt-2 border-t border-[#E5E9E9] space-y-2">
+            <button
+              onClick={() => setActiveView('ai')}
+              className="w-full py-2 bg-[#075563] text-white hover:bg-[#05434F] text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+            >
+              <Bot className="w-3.5 h-3.5 text-[#2BB9BD]" />
+              <span>Ask Decision Support About This Area</span>
+            </button>
+            <button
+              onClick={() => setActiveView('acquisition')}
+              className="w-full py-2 border border-[#DCE7E7] text-[#075563] hover:bg-[#F5F7F7] text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-[#075563]" />
+              <span>Acquire Updated Satellite Imagery</span>
+            </button>
+          </div>
+        </aside>
+      </main>
+
+      {/* ------------------------------------------------------------- */}
+      {/* 5. MODAL: DATA STATUS & PIPELINE PROVENANCE                   */}
+      {/* ------------------------------------------------------------- */}
+      {showDataStatusModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-2xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-3xl w-full p-6 space-y-4 shadow-xl border border-[#DCE7E7] max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#E5E9E9] pb-3">
+              <div className="flex items-center gap-2">
+                <Database className="w-5 h-5 text-[#075563]" />
+                <h3 className="text-base font-semibold text-[#075563]">
+                  Environmental Data Status & Pipeline Provenance
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowDataStatusModal(false)}
+                className="p-1 text-[#526B7A] hover:text-[#18343A] rounded cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Error alerts if any stream is degraded */}
+            {environmentalMode === 'REAL' && (realSeaIceError || realOceanCurrentError || realWeatherError) && (
+              <div className="bg-[#FEE2E2] text-[#991B1B] p-3 rounded-lg border border-[#FECACA] text-xs space-y-1">
+                <div className="font-semibold flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4" /> Real Data Service Alert
+                </div>
+                {realSeaIceError && <p>[Sea Ice] {realSeaIceError}</p>}
+                {realOceanCurrentError && <p>[Ocean Currents] {realOceanCurrentError}</p>}
+                {realWeatherError && <p>[Weather] {realWeatherError}</p>}
+              </div>
+            )}
+
+            {/* 4 Data Stream Cards */}
+            {unifiedEnvironment && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                {/* Sea Ice */}
+                <div className="bg-[#F5F7F7] p-3 rounded-lg border border-[#DCE7E7] space-y-1">
+                  <div className="font-semibold text-[#075563] flex justify-between">
+                    <span>Sea Ice Observations</span>
+                    <span className="text-[#2C6E49]">{unifiedEnvironment.sources.seaIce.quality}</span>
+                  </div>
+                  <p className="text-[11px] text-[#526B7A]">{unifiedEnvironment.sources.seaIce.sourceName}</p>
+                  <p className="text-[11px]">Resolution: {unifiedEnvironment.sources.seaIce.sourceResolution}</p>
+                </div>
+
+                {/* Ocean Currents */}
+                <div className="bg-[#F5F7F7] p-3 rounded-lg border border-[#DCE7E7] space-y-1">
+                  <div className="font-semibold text-[#075563] flex justify-between">
+                    <span>Ocean Hydrodynamics</span>
+                    <span className="text-[#2C6E49]">{unifiedEnvironment.sources.ocean.quality}</span>
+                  </div>
+                  <p className="text-[11px] text-[#526B7A]">{unifiedEnvironment.sources.ocean.sourceName}</p>
+                  <p className="text-[11px]">Resolution: {unifiedEnvironment.sources.ocean.sourceResolution}</p>
+                </div>
+
+                {/* Iceberg Catalog */}
+                <div className="bg-[#F5F7F7] p-3 rounded-lg border border-[#DCE7E7] space-y-1">
+                  <div className="font-semibold text-[#075563] flex justify-between">
+                    <span>Iceberg Catalog</span>
+                    <span className="text-[#2C6E49]">{unifiedEnvironment.sources.icebergs.quality}</span>
+                  </div>
+                  <p className="text-[11px] text-[#526B7A]">{unifiedEnvironment.sources.icebergs.sourceName}</p>
+                  <p className="text-[11px]">Coverage: {unifiedEnvironment.sources.icebergs.coverage}</p>
+                </div>
+
+                {/* Weather Forecast */}
+                <div className="bg-[#F5F7F7] p-3 rounded-lg border border-[#DCE7E7] space-y-1">
+                  <div className="font-semibold text-[#075563] flex justify-between">
+                    <span>Weather Forecast</span>
+                    <span className="text-[#A16207]">{unifiedEnvironment.sources.weather.quality}</span>
+                  </div>
+                  <p className="text-[11px] text-[#526B7A]">{unifiedEnvironment.sources.weather.sourceName}</p>
+                  <p className="text-[11px]">Resolution: {unifiedEnvironment.sources.weather.sourceResolution}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setShowDataStatusModal(false)}
+                className="px-4 py-2 bg-[#075563] text-white text-xs font-semibold rounded-lg cursor-pointer"
+              >
+                Close
+              </button>
             </div>
           </div>
+        </div>
+      )}
 
-          <div className="max-h-[300px] overflow-y-auto divide-y divide-slate-200 font-mono text-xs">
-            {filteredCells.map((cell) => {
-              const isSelected = selectedCellId === cell.id;
-              const isOverLimit = cell.concentrationPercent > selectedVessel.maxSeaIceConcentrationPercent;
+      {/* ------------------------------------------------------------- */}
+      {/* 6. MODAL: REGIONAL GRID DATA MATRIX (100 Cells)               */}
+      {/* ------------------------------------------------------------- */}
+      {showGridMatrixModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-2xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-4xl w-full p-6 space-y-4 shadow-xl border border-[#DCE7E7] max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-[#E5E9E9] pb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <Sliders className="w-5 h-5 text-[#075563]" />
+                <h3 className="text-base font-semibold text-[#075563]">
+                  Evaluated Regional Grid Cells Matrix ({seaIceCells.length})
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowGridMatrixModal(false)}
+                className="p-1 text-[#526B7A] hover:text-[#18343A] rounded cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-              return (
+            {/* Filter Input */}
+            <div className="relative shrink-0">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#526B7A]" />
+              <input
+                type="text"
+                placeholder="Filter grid cells by ID, stage, or coordinates..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 text-xs border border-[#DCE7E7] rounded-lg bg-[#F5F7F7] focus:bg-white text-[#18343A] focus:outline-none focus:border-[#075563]"
+              />
+            </div>
+
+            {/* Cells List */}
+            <div className="flex-1 overflow-y-auto border border-[#DCE7E7] rounded-xl divide-y divide-[#E5E9E9] text-xs">
+              {filteredCells.map((cell) => (
                 <div
                   key={cell.id}
-                  onClick={() => setSelectedCellId(cell.id)}
-                  className={`py-2 px-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 cursor-pointer transition ${
-                    isSelected ? 'bg-amber-50 border-l-4 border-amber-500 font-bold' : 'hover:bg-slate-50'
+                  onClick={() => {
+                    setSelectedCellId(cell.id);
+                    setShowGridMatrixModal(false);
+                  }}
+                  className={`p-3 flex items-center justify-between cursor-pointer transition ${
+                    selectedCellId === cell.id ? 'bg-[#EEF4EF] font-semibold text-[#075563]' : 'hover:bg-[#F5F7F7]'
                   }`}
                 >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900">{cell.id}</span>
-                      <span className="text-slate-500 text-[11px]">
-                        ({Math.abs(cell.lat).toFixed(1)}°S, {Math.abs(cell.lon).toFixed(1)}°W)
-                      </span>
-                      {isOverLimit && (
-                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-red-100 text-red-800 border border-red-300 font-bold">
-                          EXCEEDS VESSEL RATING
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-slate-600">
-                      {cell.stage} • Thickness: {cell.thicknessMeters}m • Age: {cell.ageDays ?? 14} days
-                    </div>
+                  <div>
+                    <span className="font-semibold text-[#075563]">{cell.id}</span>
+                    <span className="text-[#526B7A] text-[11px] ml-2">
+                      ({Math.abs(cell.lat).toFixed(1)}°S, {Math.abs(cell.lon).toFixed(1)}°W)
+                    </span>
+                    <p className="text-[11px] text-[#526B7A] mt-0.5">{cell.stage}</p>
                   </div>
 
-                  <div className="flex items-center gap-4 text-right">
+                  <div className="flex items-center gap-6 text-right">
                     <div>
-                      <div className="text-[10px] text-slate-500 font-semibold">CONCENTRATION</div>
-                      <div
-                        className={`font-bold text-xs ${
-                          cell.concentrationPercent > 70
-                            ? 'text-amber-700'
-                            : cell.concentrationPercent > 40
-                            ? 'text-blue-700'
-                            : 'text-emerald-700'
-                        }`}
-                      >
-                        {cell.concentrationPercent}%
-                      </div>
+                      <span className="text-[10px] text-[#526B7A] block">Concentration</span>
+                      <strong className="text-[#075563]">{cell.concentrationPercent}%</strong>
                     </div>
-
                     <div>
-                      <div className="text-[10px] text-slate-500 font-semibold">UNCERTAINTY</div>
-                      <div className="text-slate-800 text-xs">±{cell.uncertainty}%</div>
+                      <span className="text-[10px] text-[#526B7A] block">Drift</span>
+                      <span>{cell.driftVector.speedKnots} kts</span>
                     </div>
-
                     <div>
-                      <div className="text-[10px] text-slate-500 font-semibold">DRIFT</div>
-                      <div className="text-slate-800 text-xs">
-                        {cell.driftVector.speedKnots} kt @ {cell.driftVector.headingDeg}°
-                      </div>
+                      <span className="text-[10px] text-[#526B7A] block">Uncertainty</span>
+                      <span>±{cell.uncertainty}%</span>
                     </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
+              ))}
+            </div>
 
-        {/* Model Formulation Notes */}
-        <div className="bg-white p-4 rounded-lg border border-slate-200 text-xs font-sans text-slate-600 space-y-1.5 leading-relaxed shadow-xs">
-          <div className="font-bold text-slate-900 flex items-center gap-1.5 font-mono text-xs">
-            <Info className="w-4 h-4 text-slate-700" /> Real-Data Initialized Sea-Ice Formulation & Scientific Honesty Statement
+            <div className="pt-2 flex justify-end shrink-0">
+              <button
+                onClick={() => setShowGridMatrixModal(false)}
+                className="px-4 py-2 bg-[#075563] text-white text-xs font-semibold rounded-lg cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
           </div>
-          <p>
-            {environmentalMode === 'REAL' ? (
-              <>
-                <strong>REAL DATA INITIALIZED BASELINE FORECAST:</strong> Ingests Copernicus Marine L4 satellite sea-ice concentration observations. Real sea-ice observations are available, but operational forecasting is not yet scientifically validated.
-              </>
-            ) : (
-              <>
-                Sea ice concentration evolves under thermodynamic growth (+0.05%/h below -1.8°C) and wind stress advection (2.1% of 10m wind velocity).
-              </>
-            )}
-          </p>
         </div>
-      </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* 7. MODAL: MODEL DETAILS & SCIENTIFIC HONESTY                  */}
+      {/* ------------------------------------------------------------- */}
+      {showModelDetailsModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-2xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full p-6 space-y-4 shadow-xl border border-[#DCE7E7] max-h-[90vh] overflow-y-auto text-xs leading-relaxed text-[#18343A]">
+            <div className="flex items-center justify-between border-b border-[#E5E9E9] pb-3">
+              <div className="flex items-center gap-2">
+                <Info className="w-5 h-5 text-[#075563]" />
+                <h3 className="text-base font-semibold text-[#075563]">
+                  Sea-Ice Advection Model & Scientific Formulation
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowModelDetailsModal(false)}
+                className="p-1 text-[#526B7A] hover:text-[#18343A] rounded cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="font-semibold text-[#075563]">Kinematic Advection & Growth Formulation</h4>
+              <p className="text-[#526B7A]">
+                Sea-ice concentration evolves under thermodynamic growth (+0.05%/h below -1.8°C seawater freezing threshold) and wind stress advection (2.1% of 10m wind velocity field).
+              </p>
+
+              <h4 className="font-semibold text-[#075563]">Forecast Horizon Limits</h4>
+              <p className="text-[#526B7A]">
+                Short-range forecasts (+6h to +24h) maintain high spatial fidelity based on Copernicus Marine L4 sea-ice observations. Medium-range forecasts (+48h to +72h) incorporate expanded uncertainty envelopes due to boundary layer wind variance.
+              </p>
+
+              <div className="bg-[#F5F7F7] p-3 rounded-lg border border-[#DCE7E7] text-[11px] text-[#526B7A] italic">
+                Notice: Sea-ice confidence scores and grid cell uncertainties are decision-support heuristics and baseline operational assumptions for Antarctic navigation.
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setShowModelDetailsModal(false)}
+                className="px-4 py-2 bg-[#075563] text-white text-xs font-semibold rounded-lg cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

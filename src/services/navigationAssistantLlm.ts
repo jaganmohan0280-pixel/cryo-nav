@@ -29,6 +29,7 @@ import {
 export interface LlmExplanationRequest {
   contextResult: NavigationAssistantContextResult;
   userQuery: string;
+  conversation?: { sender: string; text: string }[];
   apiKey?: string;
   timeoutMs?: number;
   mockGenerator?: (prompt: string) => Promise<string>;
@@ -111,7 +112,7 @@ OPERATIONAL MANDATE:
 "${MANDATORY_NAVIGATOR_DISCLAIMER}"
 
 ROLE:
-You are an expert Antarctic marine decision-support assistant. You explain structured navigation evidence to polar navigators.
+You are an expert Antarctic marine decision-support assistant for research vessels. You explain structured navigation evidence, environmental risks, iceberg threats, and route rationale to polar navigators.
 
 GROUNDING RULES & CONSTRAINTS:
 1. Base your answer ONLY on the structured navigation context payload below.
@@ -133,7 +134,7 @@ ${JSON.stringify(contextResult, null, 2)}
 export async function generateLlmNavigationExplanation(
   request: LlmExplanationRequest
 ): Promise<LlmExplanationResult> {
-  const { contextResult, userQuery, apiKey, timeoutMs = 8000, mockGenerator } = request;
+  const { contextResult, userQuery, conversation = [], apiKey, timeoutMs = 12000, mockGenerator } = request;
   const timestamp = new Date().toISOString();
   const dataMode = contextResult?.dataMode || 'UNAVAILABLE';
 
@@ -184,7 +185,6 @@ export async function generateLlmNavigationExplanation(
     if (mockGenerator) {
       rawReply = await mockGenerator(`${systemInstruction}\n\n${userPrompt}`);
     } else if (apiKey) {
-      // Direct API key provided explicitly (e.g. standalone Node server script / test execution)
       const ai = new GoogleGenAI({ apiKey });
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs)
@@ -199,9 +199,6 @@ export async function generateLlmNavigationExplanation(
 
       rawReply = await Promise.race([generatePromise, timeoutPromise]);
     } else {
-      // Secure Browser Server Proxy execution path:
-      // Browser client delegates to CRYO NAV server endpoint /api/gemini/assistant.
-      // The server holds process.env.GEMINI_API_KEY. No secret is embedded in client bundle.
       const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
       const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
@@ -212,6 +209,7 @@ export async function generateLlmNavigationExplanation(
           body: JSON.stringify({
             question: userQuery,
             context: contextResult,
+            conversation,
             systemInstruction,
           }),
           signal: controller?.signal,
@@ -224,7 +222,11 @@ export async function generateLlmNavigationExplanation(
         }
 
         const data = await res.json();
-        rawReply = data?.response || data?.reply || '';
+        if (data && data.response) {
+          rawReply = data.response;
+        } else if (data && data.reply) {
+          rawReply = data.reply;
+        }
       } catch (fetchErr: any) {
         if (timeoutId) clearTimeout(timeoutId);
         if (fetchErr.name === 'AbortError') {

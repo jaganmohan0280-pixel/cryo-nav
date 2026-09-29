@@ -17,6 +17,12 @@ import {
   ArrowRight,
   X,
   Activity,
+  Crosshair,
+  Compass,
+  Radio,
+  Layers,
+  Ship,
+  Zap,
 } from 'lucide-react';
 
 import { VoyageStatePanel } from '../components/navigation/VoyageStatePanel';
@@ -79,8 +85,12 @@ export const NavigationView: React.FC = () => {
     mission,
     gpsTracking,
     startGpsSimulation,
+    fastDemoGpsSimulation,
     pauseGpsSimulation,
     resetGpsSimulation,
+    setSimulationSpeedMultiplier,
+    toggleFollowVessel,
+    focusVessel,
     icebergs,
     seaIceCells,
     recommendedRoute,
@@ -798,25 +808,28 @@ export const NavigationView: React.FC = () => {
             {/* Telemetry Grid */}
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="bg-[#F3F0E8] p-2.5 rounded-[6px] border border-[#D4D1C7]">
-                <div className="text-[10px] text-[#596267] font-semibold">LAT / LON</div>
+                <div className="text-[10px] text-[#596267] font-semibold uppercase">LAT / LON</div>
                 <div className="text-xs font-bold text-[#263238] mt-0.5">
                   {Math.abs(gpsTracking.currentLat).toFixed(3)}°S
                 </div>
                 <div className="text-[11px] text-[#596267]">
-                  {Math.abs(gpsTracking.currentLon).toFixed(3)}°W
+                  {Math.abs(gpsTracking.currentLon).toFixed(3)}°{gpsTracking.currentLon < 0 ? 'W' : 'E'}
                 </div>
               </div>
 
               <div className="bg-[#F3F0E8] p-2.5 rounded-[6px] border border-[#D4D1C7]">
-                <div className="text-[10px] text-[#596267] font-semibold">SPEED</div>
-                <div className="text-xs font-bold text-[#263238] mt-0.5">
-                  {gpsTracking.speedKnots} kts
+                <div className="text-[10px] text-[#596267] font-semibold uppercase">SPEED / STATUS</div>
+                <div className="text-xs font-bold text-[#263238] mt-0.5 flex items-center justify-between">
+                  <span>{gpsTracking.speedKnots} kts</span>
+                  <span className="text-[9px] px-1 py-0.2 rounded bg-[#315E62]/10 text-[#315E62] font-semibold">
+                    {gpsTracking.statusLabel || (gpsTracking.isSimulating ? 'UNDERWAY' : 'IDLE')}
+                  </span>
                 </div>
-                <div className="text-[10px] text-[#596267]">{gpsTracking.isSimulating ? 'Underway' : 'Idle'}</div>
+                <div className="text-[10px] text-[#596267]">Simulated GPS</div>
               </div>
 
               <div className="bg-[#F3F0E8] p-2.5 rounded-[6px] border border-[#D4D1C7]">
-                <div className="text-[10px] text-[#596267] font-semibold">HEADING</div>
+                <div className="text-[10px] text-[#596267] font-semibold uppercase">HEADING</div>
                 <div className="text-xs font-bold text-[#263238] mt-0.5">
                   {gpsTracking.headingDeg}°
                 </div>
@@ -824,33 +837,108 @@ export const NavigationView: React.FC = () => {
               </div>
 
               <div className="bg-[#F3F0E8] p-2.5 rounded-[6px] border border-[#D4D1C7]">
-                <div className="text-[10px] text-[#596267] font-semibold">XTE CORRIDOR</div>
+                <div className="text-[10px] text-[#596267] font-semibold uppercase">XTE CORRIDOR</div>
                 <div className="text-xs font-bold text-[#263238] mt-0.5">
                   {gpsTracking.crossTrackErrorNm} nm
                 </div>
-                <div className="text-[10px] text-[#596267]">±0.5 nm</div>
+                <div className="text-[10px] text-[#596267]">Centerline Offset</div>
+              </div>
+
+              <div className="bg-[#F3F0E8] p-2.5 rounded-[6px] border border-[#D4D1C7]">
+                <div className="text-[10px] text-[#596267] font-semibold uppercase">PROGRESS / ETA</div>
+                <div className="text-xs font-bold text-[#52715B] mt-0.5">
+                  {gpsTracking.routeProgressPct}%
+                </div>
+                <div className="text-[10px] text-[#596267]">
+                  {gpsTracking.etaHours != null && gpsTracking.etaHours > 0 ? `ETA: ${gpsTracking.etaHours} hrs` : 'Arrived'}
+                </div>
+              </div>
+
+              <div className="bg-[#F3F0E8] p-2.5 rounded-[6px] border border-[#D4D1C7]">
+                <div className="text-[10px] text-[#596267] font-semibold uppercase">REMAINING DIST</div>
+                <div className="text-xs font-bold text-[#263238] mt-0.5">
+                  {gpsTracking.distanceRemainingNm} nm
+                </div>
+                <div className="text-[10px] text-[#596267]">Traveled: {gpsTracking.distanceTraveledNm} nm</div>
               </div>
             </div>
 
             {/* GPS Simulation Controls */}
-            <div className="bg-[#F3F0E8] p-3 rounded-[6px] border border-[#D4D1C7] space-y-2">
-              <div className="text-xs font-semibold text-[#263238]">GPS Simulation</div>
-              <div className="flex items-center gap-2">
+            <div className="bg-[#F3F0E8] p-3 rounded-[6px] border border-[#D4D1C7] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-semibold text-[#263238] flex items-center gap-1.5">
+                  <Navigation className="w-3.5 h-3.5 text-[#315E62]" /> GPS Simulation Controls
+                </div>
+                <span className="text-[10px] font-bold text-[#315E62]">
+                  SIMULATED GPS
+                </span>
+              </div>
+
+              {/* Play / Pause / Reset / Fast Demo */}
+              <div className="flex items-center gap-1.5 select-none">
                 {!gpsTracking.isSimulating ? (
-                  <button
-                    onClick={startGpsSimulation}
-                    className="flex-1 px-3 py-1.5 bg-[#315E62] hover:bg-[#264B4F] text-white text-xs font-medium rounded-[6px] transition flex items-center justify-center gap-1"
-                  >
-                    <Play className="w-3.5 h-3.5" /> Start
-                  </button>
+                  <>
+                    <button
+                      onClick={startGpsSimulation}
+                      className="flex-1 px-2.5 py-1.5 bg-[#315E62] hover:bg-[#264B4F] text-white text-xs font-semibold rounded-[6px] transition flex items-center justify-center gap-1 cursor-pointer shadow-xs"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-white" /> Start / Resume
+                    </button>
+                    <button
+                      onClick={fastDemoGpsSimulation}
+                      title="Fast 50x Presentation Demo Mode"
+                      className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-[6px] transition flex items-center justify-center gap-1 cursor-pointer shadow-xs"
+                    >
+                      <Zap className="w-3.5 h-3.5 fill-white" /> Fast Demo (50×)
+                    </button>
+                  </>
                 ) : (
                   <button
                     onClick={pauseGpsSimulation}
-                    className="flex-1 px-3 py-1.5 bg-[#9A7945] hover:bg-[#856738] text-white text-xs font-medium rounded-[6px] transition flex items-center justify-center gap-1"
+                    className="flex-1 px-3 py-1.5 bg-[#9A7945] hover:bg-[#856738] text-white text-xs font-semibold rounded-[6px] transition flex items-center justify-center gap-1 cursor-pointer shadow-xs"
                   >
-                    <Pause className="w-3.5 h-3.5" /> Pause
+                    <Pause className="w-3.5 h-3.5 fill-white" /> Pause
                   </button>
                 )}
+
+                <button
+                  onClick={resetGpsSimulation}
+                  title="Reset vessel to origin"
+                  className="px-2.5 py-1.5 bg-[#FCFBF7] hover:bg-[#E1ECEB] text-[#263238] border border-[#D4D1C7] text-xs font-medium rounded-[6px] transition flex items-center gap-1 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> Reset
+                </button>
+              </div>
+
+              {/* Speed Multiplier & Follow Vessel */}
+              <div className="flex items-center justify-between pt-1 border-t border-[#D4D1C7]/60 text-xs select-none">
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-[#596267] font-semibold mr-0.5">Demo Speed:</span>
+                  {[1, 10, 25, 50, 100].map((multiplier) => (
+                    <button
+                      key={multiplier}
+                      onClick={() => setSimulationSpeedMultiplier(multiplier)}
+                      className={`px-1.5 py-0.5 text-[10px] font-bold rounded border transition ${
+                        (gpsTracking.simulationSpeedMultiplier || 25) === multiplier
+                          ? 'bg-[#315E62] text-white border-[#315E62] shadow-xs'
+                          : 'bg-[#FCFBF7] text-[#596267] border-[#D4D1C7] hover:bg-[#E1ECEB]'
+                      }`}
+                    >
+                      {multiplier}x
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => focusVessel()}
+                  className={`px-2 py-0.5 text-[10px] font-semibold rounded border transition flex items-center gap-1 ${
+                    gpsTracking.followVessel
+                      ? 'bg-[#52715B] text-white border-[#52715B]'
+                      : 'bg-[#FCFBF7] text-[#596267] border-[#D4D1C7] hover:bg-[#E1ECEB]'
+                  }`}
+                >
+                  <Crosshair className="w-3 h-3" /> {gpsTracking.followVessel ? 'Following' : 'Follow'}
+                </button>
               </div>
             </div>
 

@@ -170,20 +170,21 @@ export const AiAssistantView: React.FC = () => {
     navigationOperationalState,
   ]);
 
-  const handleAskQuery = async (query: string): Promise<LlmExplanationResult | null> => {
+  const handleAskQuery = async (query: string, conversationHistory?: { sender: string; text: string }[]): Promise<LlmExplanationResult | null> => {
     if (!assistantContextResult) return null;
     setIsLoadingLlm(true);
     try {
       const result = await generateLlmNavigationExplanation({
         contextResult: assistantContextResult,
         userQuery: query,
+        conversation: conversationHistory,
       });
       setLlmResult(result);
       return result;
     } catch (err: any) {
       const fallbackRes: LlmExplanationResult = {
         success: false,
-        explanation: `${SERVICE_UNAVAILABLE_MESSAGE}\n\n${assistantContextResult.structuredAnswers.whyCurrentRouteRecommended}`,
+        explanation: assistantContextResult.structuredAnswers.whyCurrentRouteRecommended,
         isFallback: true,
         error: err?.message || 'UNKNOWN_ERROR',
         provenance: 'Phase 16B Deterministic Fallback',
@@ -199,7 +200,7 @@ export const AiAssistantView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 p-6 bg-[#F5F7F7] overflow-y-auto min-h-screen text-[#18343A] space-y-6 font-sans">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#F5F7F7] font-sans">
       <NavigationAssistantPanel
         contextResult={assistantContextResult}
         onAskQuery={handleAskQuery}

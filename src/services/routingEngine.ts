@@ -322,6 +322,71 @@ interface GridNode {
 }
 
 /**
+ * Global Antarctic Ocean Highway Navigational Nodes
+ * Verified open-water ocean nodes in the Southern Ocean surrounding Antarctica.
+ * Situated offshore (latitudes -59°S to -65°S) to ensure vessels navigate open water
+ * without hopping between research stations.
+ */
+/**
+ * Global Antarctic Ocean Highway Navigational Nodes
+ * Verified open-water ocean nodes in the Southern Ocean surrounding Antarctica.
+ * Situated offshore (latitudes -59°S to -65°S) to ensure vessels navigate open water
+ * without hopping between research stations.
+ */
+export const GLOBAL_ANTARCTIC_OCEAN_WAYPOINTS: { id: string; name: string; lat: number; lon: number }[] = [
+  { id: 'gate-drake-south', name: 'Drake Passage South Gate', lat: -59.5, lon: -64.5 },
+  { id: 'gate-scotia-east', name: 'Scotia Sea East Gate', lat: -60.0, lon: -45.0 },
+  { id: 'gate-weddell-north', name: 'Weddell Sea Approach', lat: -62.0, lon: -40.0 },
+  { id: 'gate-weddell-deep', name: 'Weddell Sea Outer Corridor', lat: -65.0, lon: -35.0 },
+  { id: 'gate-dronning-maud-w', name: 'Atka Bay Outer Ocean', lat: -64.0, lon: -8.3 },
+  { id: 'gate-dronning-maud-e', name: 'Schirmacher Outer Ocean', lat: -63.5, lon: 11.8 },
+  { id: 'gate-enderby-west', name: 'Enderby Land Outer Ocean', lat: -62.5, lon: 35.0 },
+  { id: 'gate-enderby-east', name: 'Enderby East Offshore Gate', lat: -63.0, lon: 48.0 },
+  { id: 'gate-mawson-gate', name: 'Mac. Robertson Outer Ocean', lat: -63.5, lon: 62.9 },
+  { id: 'gate-prydz-bay-gate', name: 'Larsemann Hills Outer Ocean', lat: -64.5, lon: 76.2 },
+  { id: 'gate-davis-gate', name: 'Vestfold Hills Outer Ocean', lat: -63.5, lon: 78.0 },
+  { id: 'gate-shackleton-outer', name: 'Shackleton Outer Ocean', lat: -62.0, lon: 95.0 },
+  { id: 'gate-vincennes-gate', name: 'Vincennes Bay Outer Ocean', lat: -61.5, lon: 110.5 },
+  { id: 'gate-wilkes-outer', name: 'Wilkes Land Outer Ocean', lat: -61.0, lon: 125.0 },
+  { id: 'gate-adelie-coast', name: 'Adélie Coast Outer Ocean', lat: -60.5, lon: 140.0 },
+  { id: 'gate-ross-north', name: 'Ross Sea North Outer Gate', lat: -66.0, lon: 170.0 },
+  { id: 'gate-amundsen-sea', name: 'Amundsen Sea Outer Corridor', lat: -64.0, lon: -120.0 },
+  { id: 'gate-amundsen-east', name: 'Amundsen East Outer Corridor', lat: -63.5, lon: -105.0 },
+  { id: 'gate-bellingshausen', name: 'Bellingshausen Sea Gate', lat: -63.0, lon: -90.0 },
+  { id: 'gate-bellingshausen-west', name: 'Bellingshausen West Gate', lat: -63.5, lon: -80.0 },
+  { id: 'gate-peninsula-west', name: 'Adelaide / Rothera Outer Gate', lat: -64.5, lon: -68.5 },
+];
+
+/**
+  Resolves a research station to a valid navigable maritime ocean access point.
+ */
+export function resolveMaritimeAccessPoint(station: ResearchStation): [number, number] {
+  if (station.maritimeAccessPoint) {
+    const cls = classifyGeographicLocation(station.maritimeAccessPoint[0], station.maritimeAccessPoint[1]);
+    if (cls === 'WATER' || cls === 'UNKNOWN') {
+      return station.maritimeAccessPoint;
+    }
+  }
+
+  // Search outward in expanding rings for closest open water point
+  const radii = [0.1, 0.25, 0.5, 0.8, 1.2, 1.8, 2.5];
+  const angles = [0, 45, 90, 135, 180, 225, 270, 315];
+
+  for (const r of radii) {
+    for (const a of angles) {
+      const rad = (a * Math.PI) / 180;
+      const testLat = station.lat + r * Math.cos(rad);
+      const testLon = station.lon + (r * Math.sin(rad)) / Math.cos((station.lat * Math.PI) / 180);
+      if (classifyGeographicLocation(testLat, testLon) === 'WATER') {
+        return [Number(testLat.toFixed(3)), Number(testLon.toFixed(3))];
+      }
+    }
+  }
+
+  return [station.lat, station.lon];
+}
+
+/**
  * Dynamic Region-Based Water Navigation Grid Generator
  */
 function buildDynamicWaterGrid(
@@ -333,29 +398,6 @@ function buildDynamicWaterGrid(
   startNodeId: string;
   endNodeId: string;
 } {
-  // 1. Calculate bounding region
-  let minLat = Math.min(startPt[0], endPt[0]) - 2.5;
-  let maxLat = Math.max(startPt[0], endPt[0]) + 2.5;
-  let minLon = Math.min(startPt[1], endPt[1]) - 6.0;
-  let maxLon = Math.max(startPt[1], endPt[1]) + 6.0;
-
-  // Clamp latitude bounds
-  minLat = Math.max(-85.0, minLat);
-  maxLat = Math.min(-50.0, maxLat);
-
-  // If voyage crosses or approaches the Antarctic Peninsula
-  const isPeninsulaVoyage =
-    (minLon < -50 && maxLon > -75) ||
-    (startPt[1] < -60 && endPt[1] > -58) ||
-    (startPt[1] > -58 && endPt[1] < -60) ||
-    (startPt[0] < -62 && endPt[0] < -62 && Math.abs(startPt[1] - endPt[1]) > 4);
-
-  if (isPeninsulaVoyage) {
-    maxLat = Math.min(-50.0, Math.max(maxLat, -58.0)); // Expand north into Drake Passage
-    minLon = Math.min(minLon, -76.0);
-    maxLon = Math.max(maxLon, -50.0);
-  }
-
   const nodesMap = new Map<string, GridNode>();
 
   const startId = 'start-node';
@@ -363,35 +405,84 @@ function buildDynamicWaterGrid(
   nodesMap.set(startId, { id: startId, lat: startPt[0], lon: startPt[1] });
   nodesMap.set(endId, { id: endId, lat: endPt[0], lon: endPt[1] });
 
-  // Fine-grained grid step sizes: ~15 nm lat, ~15 nm lon at Antarctic latitudes
-  const latStep = 0.25;
-  const lonStep = 0.6;
+  // Add all global Antarctic ocean highway waypoints
+  GLOBAL_ANTARCTIC_OCEAN_WAYPOINTS.forEach((gw) => {
+    if (classifyGeographicLocation(gw.lat, gw.lon) === 'WATER') {
+      nodesMap.set(gw.id, { id: gw.id, lat: gw.lat, lon: gw.lon });
+    }
+  });
 
-  for (let lat = minLat; lat <= maxLat; lat += latStep) {
-    for (let lon = minLon; lon <= maxLon; lon += lonStep) {
-      const curLat = Number(lat.toFixed(3));
-      const curLon = Number(lon.toFixed(3));
-      const cls = classifyGeographicLocation(curLat, curLon);
-      if (cls === 'WATER') {
-        const id = `grid-${curLat}_${curLon}`;
-        nodesMap.set(id, { id, lat: curLat, lon: curLon });
+  // Calculate voyage bounding region & direction vector
+  const distDirect = calculateDistanceNm(startPt[0], startPt[1], endPt[0], endPt[1]);
+  const steps = Math.max(4, Math.min(15, Math.ceil(distDirect / 120)));
+
+  const dLat = endPt[0] - startPt[0];
+  const dLon = endPt[1] - startPt[1];
+  const len = Math.hypot(dLat, dLon) || 1.0;
+  // Perpendicular unit vector (cross-track offset direction)
+  const pLat = -dLon / len;
+  const pLon = dLat / len;
+
+  // Perpendicular offset multipliers (degrees latitude/longitude equivalent)
+  const perpOffsets = [0, -1.2, 1.2, -3.0, 3.0, -6.0, 6.0, -10.0, 10.0];
+
+  for (let s = 1; s < steps; s++) {
+    const frac = s / steps;
+    const baseLat = startPt[0] + dLat * frac;
+    const baseLon = startPt[1] + dLon * frac;
+
+    for (const off of perpOffsets) {
+      const lat = Number((baseLat + pLat * off).toFixed(2));
+      const lon = Number((baseLon + pLon * off).toFixed(2));
+      if (lat >= -85.0 && lat <= -50.0 && lon >= -180 && lon <= 180) {
+        if (classifyGeographicLocation(lat, lon) === 'WATER') {
+          const id = `grid-${lat}_${lon}`;
+          if (!nodesMap.has(id)) {
+            nodesMap.set(id, { id, lat, lon });
+          }
+        }
       }
     }
   }
+
+  // Add dense local grid nodes around start & end access points
+  const localRadii = [0.3, 0.8, 1.8, 3.5];
+  const localAngles = [0, 45, 90, 135, 180, 225, 270, 315];
+
+  [startPt, endPt].forEach((pt) => {
+    for (const r of localRadii) {
+      for (const a of localAngles) {
+        const rad = (a * Math.PI) / 180;
+        const lat = Number((pt[0] + r * Math.cos(rad)).toFixed(2));
+        const lon = Number((pt[1] + (r * Math.sin(rad)) / Math.cos((pt[0] * Math.PI) / 180)).toFixed(2));
+        if (lat >= -85.0 && lat <= -50.0 && classifyGeographicLocation(lat, lon) === 'WATER') {
+          const id = `grid-${lat}_${lon}`;
+          if (!nodesMap.has(id)) {
+            nodesMap.set(id, { id, lat, lon });
+          }
+        }
+      }
+    }
+  });
 
   const nodes = Array.from(nodesMap.values());
   const adjList = new Map<string, { targetId: string; distanceNm: number }[]>();
   nodes.forEach((n) => adjList.set(n.id, []));
 
-  // Connect 8-connected grid neighbors (Max neighbor distance 40 nm)
-  const MAX_NEIGHBOR_DIST_NM = 40.0;
+  // Maximum neighbor distance scale with voyage length
+  const MAX_NEIGHBOR_DIST_NM = Math.max(250.0, Math.min(950.0, distDirect * 0.75));
 
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
       const u = nodes[i];
       const v = nodes[j];
-      const dist = calculateDistanceNm(u.lat, u.lon, v.lat, v.lon);
 
+      // Fast bounding box pre-filter to eliminate distant node pairs instantly
+      if (Math.abs(u.lat - v.lat) > 12.0 || Math.abs(u.lon - v.lon) > 25.0) {
+        continue;
+      }
+
+      const dist = calculateDistanceNm(u.lat, u.lon, v.lat, v.lon);
       if (dist <= MAX_NEIGHBOR_DIST_NM) {
         const check = segmentIntersectsProhibitedGeography([u.lat, u.lon], [v.lat, v.lon]);
         if (!check.intersects) {
@@ -406,13 +497,19 @@ function buildDynamicWaterGrid(
 }
 
 /**
- * A* Pathfinding on Water Grid
+ * Objective-Specific A* Pathfinding on Water Grid
  */
 function runGridAStar(
   startId: string,
   endId: string,
   nodes: GridNode[],
   adjList: Map<string, { targetId: string; distanceNm: number }[]>,
+  objective: 'SAFE' | 'BALANCED' | 'FAST',
+  icebergs: IcebergDetection[],
+  seaIceCells: SeaIceCell[],
+  weather: WeatherCondition,
+  vessel: VesselProfile,
+  uncertaintyMultiplier: number = 1.0,
   edgePenaltyMap?: Map<string, number>
 ): [number, number][] {
   const nodeMap = new Map<string, GridNode>();
@@ -457,12 +554,52 @@ function runGridAStar(
     openSet.delete(currentId);
 
     const neighbors = adjList.get(currentId) || [];
+    const uNode = nodeMap.get(currentId)!;
 
     for (const edge of neighbors) {
       const vNode = nodeMap.get(edge.targetId);
       if (!vNode) continue;
 
-      let edgeCost = edge.distanceNm;
+      const dist = edge.distanceNm;
+      const midLat = (uNode.lat + vNode.lat) / 2;
+      const midLon = (uNode.lon + vNode.lon) / 2;
+
+      // Evaluate environmental risk at segment midpoint
+      const evalPt = evaluatePointRisk(midLat, midLon, icebergs, seaIceCells, weather, vessel, uncertaintyMultiplier);
+
+      let objectiveWeight = 1.0;
+      if (objective === 'SAFE') {
+        // SAFE strongly avoids risk, sea ice, icebergs, weather, and coastal proximity
+        const iceRiskPen = evalPt.localSeaIceConcentration > 0 ? (evalPt.localSeaIceConcentration / 12) ** 1.8 : 0;
+        const bergPen = evalPt.nearestIcebergDistanceNm < 8.0 ? (8.0 - evalPt.nearestIcebergDistanceNm) * 2.5 : 0;
+        const riskPen = evalPt.totalRisk * 0.08;
+        const uncPen = evalPt.uncertaintyRisk * 0.05;
+        // Prefer deep offshore ocean (further north lat) for safety
+        const coastalProximityPen = Math.max(0, (-63.0 - midLat) * 0.12);
+
+        objectiveWeight = 1.0 + iceRiskPen + bergPen + riskPen + uncPen + coastalProximityPen;
+      } else if (objective === 'BALANCED') {
+        // BALANCED: moderate balance between distance, time, and safety
+        const iceRiskPen = evalPt.localSeaIceConcentration > 0 ? (evalPt.localSeaIceConcentration / 25) * 1.2 : 0;
+        const bergPen = evalPt.nearestIcebergDistanceNm < 5.0 ? (5.0 - evalPt.nearestIcebergDistanceNm) * 1.0 : 0;
+        const riskPen = evalPt.totalRisk * 0.03;
+
+        objectiveWeight = 1.0 + iceRiskPen + bergPen + riskPen;
+      } else {
+        // FAST: Minimizes travel time (ETA), incorporating ocean current assistance if present
+        const riskPen = evalPt.totalRisk * 0.005;
+        let currentAssistance = 0;
+        if (weather && weather.oceanCurrentKnots) {
+          const edgeAngleRad = Math.atan2(vNode.lon - uNode.lon, vNode.lat - uNode.lat);
+          const currAngleRad = ((weather.oceanCurrentDirectionDeg || 0) * Math.PI) / 180;
+          const dot = Math.cos(edgeAngleRad - currAngleRad);
+          currentAssistance = weather.oceanCurrentKnots * dot * 0.2;
+        }
+        const effectiveSpeed = Math.max(1, vessel.cruisingSpeedKnots + currentAssistance);
+        objectiveWeight = (vessel.cruisingSpeedKnots / effectiveSpeed) * (1.0 + riskPen);
+      }
+
+      let edgeCost = dist * objectiveWeight;
       if (edgePenaltyMap) {
         const edgeKey = `${currentId}->${edge.targetId}`;
         const penalty = edgePenaltyMap.get(edgeKey) || 1.0;
@@ -501,15 +638,26 @@ export function findStationByLocation(locName: string, lat: number, lon: number)
     const lower = locName.toLowerCase();
     st = AUTHORITATIVE_RESEARCH_STATIONS.find(
       (s) =>
+        s.name.toLowerCase().includes(lower) ||
         lower.includes(s.name.toLowerCase()) ||
-        lower.includes(s.shortName.toLowerCase()) ||
-        s.name.toLowerCase().includes(lower)
+        s.shortName.toLowerCase().includes(lower) ||
+        lower.includes(s.shortName.toLowerCase())
     );
     if (st) return st;
+
+    // Check partial words (e.g. "Rothera", "Palmer", "Maitri", "Bharati")
+    const words = lower.split(/\s+/).filter((w) => w.length >= 4);
+    for (const w of words) {
+      st = AUTHORITATIVE_RESEARCH_STATIONS.find(
+        (s) => s.name.toLowerCase().includes(w) || s.shortName.toLowerCase().includes(w)
+      );
+      if (st) return st;
+    }
   }
 
+  // Fallback spatial proximity check within 1.5 degrees
   return AUTHORITATIVE_RESEARCH_STATIONS.find(
-    (s) => Math.abs(s.lat - lat) < 0.3 && Math.abs(s.lon - lon) < 0.3
+    (s) => Math.abs(s.lat - lat) < 1.5 && Math.abs(s.lon - lon) < 1.5
   );
 }
 
@@ -537,12 +685,12 @@ export function generateRouteAlternatives(
   }
 
   // 2. Resolve source & destination maritime access coordinates
-  const startPt: [number, number] = startStation?.maritimeAccessPoint
-    ? startStation.maritimeAccessPoint
+  const startPt: [number, number] = startStation
+    ? resolveMaritimeAccessPoint(startStation)
     : [mission.startLocation.lat, mission.startLocation.lon];
 
-  const destPt: [number, number] = destStation?.maritimeAccessPoint
-    ? destStation.maritimeAccessPoint
+  const destPt: [number, number] = destStation
+    ? resolveMaritimeAccessPoint(destStation)
     : [mission.destination.lat, mission.destination.lon];
 
   // Check identical start/dest
@@ -561,64 +709,142 @@ export function generateRouteAlternatives(
   // 3. Build Dynamic Water Grid
   const grid = buildDynamicWaterGrid(startPt, destPt);
 
-  const rawCandidatePaths: [number, number][][] = [];
+  let uncertaintyMultiplier = activeScenarioModifier;
+  if (decisionConfidence) {
+    if (decisionConfidence.overallLevel === 'MEDIUM') uncertaintyMultiplier *= 1.15;
+    else if (decisionConfidence.overallLevel === 'LOW') uncertaintyMultiplier *= 1.4;
+    else if (decisionConfidence.overallLevel === 'CRITICAL') uncertaintyMultiplier *= 2.0;
+  }
 
-  // Candidate 1: Primary A* Path
-  const path1 = runGridAStar(grid.startNodeId, grid.endNodeId, grid.nodes, grid.adjList);
-  if (path1.length >= 2) {
-    rawCandidatePaths.push(path1);
+  // 4. Generate Objective-Specific Primary A* Paths
+  const rawPathSafe = runGridAStar(
+    grid.startNodeId,
+    grid.endNodeId,
+    grid.nodes,
+    grid.adjList,
+    'SAFE',
+    icebergs,
+    seaIceCells,
+    weather,
+    vessel,
+    uncertaintyMultiplier
+  );
 
-    // Candidate 2: Penalize Path 1 corridor to search for alternative corridor
-    const penaltyMap1 = new Map<string, number>();
-    for (let i = 0; i < path1.length; i++) {
-      const p1 = path1[i];
-      grid.nodes.forEach((u) => {
-        const d = calculateDistanceNm(u.lat, u.lon, p1[0], p1[1]);
-        if (d < 25.0) {
-          const neighbors = grid.adjList.get(u.id) || [];
-          for (const edge of neighbors) {
-            penaltyMap1.set(`${u.id}->${edge.targetId}`, 4.0);
-            penaltyMap1.set(`${edge.targetId}->${u.id}`, 4.0);
-          }
-        }
-      });
-    }
+  let rawPathBalanced = runGridAStar(
+    grid.startNodeId,
+    grid.endNodeId,
+    grid.nodes,
+    grid.adjList,
+    'BALANCED',
+    icebergs,
+    seaIceCells,
+    weather,
+    vessel,
+    uncertaintyMultiplier
+  );
 
-    const path2 = runGridAStar(grid.startNodeId, grid.endNodeId, grid.nodes, grid.adjList, penaltyMap1);
-    if (path2.length >= 2) {
-      rawCandidatePaths.push(path2);
+  let rawPathFast = runGridAStar(
+    grid.startNodeId,
+    grid.endNodeId,
+    grid.nodes,
+    grid.adjList,
+    'FAST',
+    icebergs,
+    seaIceCells,
+    weather,
+    vessel,
+    uncertaintyMultiplier
+  );
 
-      // Candidate 3: Penalize Path 1 & Path 2 corridors for tertiary search
-      const penaltyMap2 = new Map<string, number>(penaltyMap1);
-      for (let i = 0; i < path2.length; i++) {
-        const p1 = path2[i];
+  // Helper to build penalty map around a set of path waypoints
+  const createCorridorPenaltyMap = (paths: [number, number][][], penaltyFactor: number = 4.0): Map<string, number> => {
+    const pMap = new Map<string, number>();
+    paths.forEach((path) => {
+      for (let i = 0; i < path.length; i++) {
+        const pt = path[i];
         grid.nodes.forEach((u) => {
-          const d = calculateDistanceNm(u.lat, u.lon, p1[0], p1[1]);
-          if (d < 25.0) {
+          const d = calculateDistanceNm(u.lat, u.lon, pt[0], pt[1]);
+          if (d < 30.0) {
             const neighbors = grid.adjList.get(u.id) || [];
             for (const edge of neighbors) {
-              penaltyMap2.set(`${u.id}->${edge.targetId}`, 4.0);
-              penaltyMap2.set(`${edge.targetId}->${u.id}`, 4.0);
+              pMap.set(`${u.id}->${edge.targetId}`, penaltyFactor);
+              pMap.set(`${edge.targetId}->${u.id}`, penaltyFactor);
             }
           }
         });
       }
+    });
+    return pMap;
+  };
 
-      const path3 = runGridAStar(grid.startNodeId, grid.endNodeId, grid.nodes, grid.adjList, penaltyMap2);
-      if (path3.length >= 2) {
-        rawCandidatePaths.push(path3);
+  // Enforce Route Diversity: If BALANCED is geometrically similar to SAFE, search secondary corridor
+  if (rawPathSafe.length >= 2 && rawPathBalanced.length >= 2) {
+    const simSB = calculateRouteSimilarity(rawPathSafe, rawPathBalanced, 15.0, 80.0);
+    if (simSB.isGeometricallySimilar) {
+      const penMapSafe = createCorridorPenaltyMap([rawPathSafe], 3.5);
+      const altBalanced = runGridAStar(
+        grid.startNodeId,
+        grid.endNodeId,
+        grid.nodes,
+        grid.adjList,
+        'BALANCED',
+        icebergs,
+        seaIceCells,
+        weather,
+        vessel,
+        uncertaintyMultiplier,
+        penMapSafe
+      );
+      if (altBalanced.length >= 2) {
+        rawPathBalanced = altBalanced;
       }
     }
   }
 
-  if (rawCandidatePaths.length === 0) {
-    return []; // ROUTE UNAVAILABLE
+  // Enforce Route Diversity: If FAST is geometrically similar to SAFE or BALANCED, search tertiary corridor
+  if (rawPathSafe.length >= 2 && rawPathFast.length >= 2) {
+    const simSF = calculateRouteSimilarity(rawPathSafe, rawPathFast, 15.0, 80.0);
+    const simBF = rawPathBalanced.length >= 2 ? calculateRouteSimilarity(rawPathBalanced, rawPathFast, 15.0, 80.0) : { isGeometricallySimilar: false };
+
+    if (simSF.isGeometricallySimilar || simBF.isGeometricallySimilar) {
+      const penMapBoth = createCorridorPenaltyMap([rawPathSafe, rawPathBalanced], 4.0);
+      const altFast = runGridAStar(
+        grid.startNodeId,
+        grid.endNodeId,
+        grid.nodes,
+        grid.adjList,
+        'FAST',
+        icebergs,
+        seaIceCells,
+        weather,
+        vessel,
+        uncertaintyMultiplier,
+        penMapBoth
+      );
+      if (altFast.length >= 2) {
+        rawPathFast = altFast;
+      }
+    }
   }
 
-  // 4. Densify & Validate 100% Water Safety against antarcticGeographicMask
-  const validatedCandidates: [number, number][][] = [];
+  const candidateRawMap: { id: 'safest' | 'balanced' | 'fastest'; raw: [number, number][] }[] = [
+    { id: 'safest', raw: rawPathSafe },
+    { id: 'balanced', raw: rawPathBalanced },
+    { id: 'fastest', raw: rawPathFast },
+  ];
 
-  for (const rawPath of rawCandidatePaths) {
+  // 5. Densify & Validate 100% Water Safety against antarcticGeographicMask
+  interface ValidatedCorridor {
+    id: 'safest' | 'balanced' | 'fastest';
+    waypoints: [number, number][];
+  }
+
+  const validatedCorridors: ValidatedCorridor[] = [];
+
+  for (const candItem of candidateRawMap) {
+    const rawPath = candItem.raw;
+    if (!rawPath || rawPath.length < 2) continue;
+
     const fullWaypoints: [number, number][] = [];
 
     if (startStation && startStation.isCoastal) {
@@ -642,39 +868,17 @@ export function generateRouteAlternatives(
 
     const valResult = validateMaritimeRouteGeometry(fullWaypoints);
     if (valResult.isValid && valResult.landIntersectionsCount === 0 && valResult.iceShelfIntersectionsCount === 0) {
-      validatedCandidates.push(fullWaypoints);
+      validatedCorridors.push({ id: candItem.id, waypoints: fullWaypoints });
     }
   }
 
-  if (validatedCandidates.length === 0) {
-    return [];
-  }
-
-  // 5. Apply Route Diversity Filtering & Deduplicate Similar Geometries
-  const distinctCorridors: [number, number][][] = [];
-  for (const candidate of validatedCandidates) {
-    let isDuplicate = false;
-    for (const existing of distinctCorridors) {
-      const sim = calculateRouteSimilarity(candidate, existing, 18.0, 85.0);
-      if (sim.isGeometricallySimilar) {
-        isDuplicate = true;
-        break;
-      }
-    }
-    if (!isDuplicate) {
-      distinctCorridors.push(candidate);
-    }
+  if (validatedCorridors.length === 0) {
+    return []; // ROUTE UNAVAILABLE
   }
 
   // 6. Evaluate Environmental Metrics for Each Corridor
-  let uncertaintyMultiplier = activeScenarioModifier;
-  if (decisionConfidence) {
-    if (decisionConfidence.overallLevel === 'MEDIUM') uncertaintyMultiplier *= 1.15;
-    else if (decisionConfidence.overallLevel === 'LOW') uncertaintyMultiplier *= 1.4;
-    else if (decisionConfidence.overallLevel === 'CRITICAL') uncertaintyMultiplier *= 2.0;
-  }
-
   interface EvaluatedCorridor {
+    id: 'safest' | 'balanced' | 'fastest';
     waypoints: [number, number][];
     distanceNm: number;
     etaHours: number;
@@ -685,7 +889,6 @@ export function generateRouteAlternatives(
     hazardsCount: number;
     hazardSummary: string[];
     maxSeaIceConc: number;
-    evalPointsCount: number;
     safestCost: number;
     balancedCost: number;
     fastestCost: number;
@@ -695,7 +898,8 @@ export function generateRouteAlternatives(
 
   const evaluatedList: EvaluatedCorridor[] = [];
 
-  for (const waypoints of distinctCorridors) {
+  for (const corr of validatedCorridors) {
+    const waypoints = corr.waypoints;
     const valResult = validateMaritimeRouteGeometry(waypoints);
     let distanceNm = valResult.totalDistanceNm;
     let totalRiskSum = 0;
@@ -745,9 +949,12 @@ export function generateRouteAlternatives(
     const avgUncertainty = Math.round(totalUncertaintySum / Math.max(1, evalPointsCount));
 
     const vesselSpeed = vessel.cruisingSpeedKnots;
-    const etaHours = Number((distanceNm / Math.max(1, vesselSpeed)).toFixed(1));
+    // Calculate speed adjustments for FAST vs SAFE vs BALANCED
+    const speedFactor = corr.id === 'fastest' ? 1.08 : corr.id === 'safest' ? 0.92 : 1.0;
+    const effectiveSpeed = Math.max(1, vesselSpeed * speedFactor);
+    const etaHours = Number((distanceNm / effectiveSpeed).toFixed(1));
     const fuelConsumptionDaily = vessel.fuelConsumptionTonsPerDay;
-    const fuelTons = Number(((etaHours / 24) * fuelConsumptionDaily).toFixed(1));
+    const fuelTons = Number(((etaHours / 24) * fuelConsumptionDaily * (corr.id === 'fastest' ? 1.15 : corr.id === 'safest' ? 0.95 : 1.0)).toFixed(1));
 
     let confidence: RouteAlternative['confidence'] = decisionConfidence ? decisionConfidence.overallLevel : 'HIGH';
     if (!decisionConfidence) {
@@ -769,6 +976,7 @@ export function generateRouteAlternatives(
     const geometryHash = generateGeometryHash(waypoints);
 
     evaluatedList.push({
+      id: corr.id,
       waypoints,
       distanceNm,
       etaHours,
@@ -779,7 +987,6 @@ export function generateRouteAlternatives(
       hazardsCount,
       hazardSummary,
       maxSeaIceConc,
-      evalPointsCount,
       safestCost,
       balancedCost,
       fastestCost,
@@ -788,20 +995,62 @@ export function generateRouteAlternatives(
     });
   }
 
-  // 7. Assign Optimization Labels & Merged Route Alternatives
+  // 7. Map to the 3 Route Alternatives (SAFE, BALANCED, FAST)
+  const safestCand = evaluatedList.find((e) => e.id === 'safest') || evaluatedList[0];
+  const balancedCand = evaluatedList.find((e) => e.id === 'balanced') || evaluatedList[1] || evaluatedList[0];
+  const fastestCand = evaluatedList.find((e) => e.id === 'fastest') || evaluatedList[2] || evaluatedList[0];
+
+  const cands: {
+    id: 'safest' | 'balanced' | 'fastest';
+    routeId: string;
+    name: string;
+    type: 'SAFE' | 'BALANCED' | 'FAST';
+    color: string;
+    cand: EvaluatedCorridor;
+    label: 'SAFEST' | 'BALANCED' | 'FASTEST';
+  }[] = [
+    {
+      id: 'safest',
+      routeId: 'ROUTE-001',
+      name: 'Outer Oceanic Deep-Water Corridor (Safest)',
+      type: 'SAFE',
+      color: '#10b981',
+      cand: safestCand,
+      label: 'SAFEST',
+    },
+    {
+      id: 'balanced',
+      routeId: 'ROUTE-002',
+      name: 'Coastal Passage Corridor (Balanced)',
+      type: 'BALANCED',
+      color: '#0ea5e9',
+      cand: balancedCand,
+      label: 'BALANCED',
+    },
+    {
+      id: 'fastest',
+      routeId: 'ROUTE-003',
+      name: 'Direct Open-Sea Highway (Fastest)',
+      type: 'FAST',
+      color: '#f59e0b',
+      cand: fastestCand,
+      label: 'FASTEST',
+    },
+  ];
+
   const results: RouteAlternative[] = [];
 
-  if (evaluatedList.length === 1) {
-    const e = evaluatedList[0];
-    const constraintsSatisfied = e.maxSeaIceConc <= vessel.maxSeaIceConcentrationPercent;
-
+  for (const c of cands) {
+    const e = c.cand;
     const isLowConf = decisionConfidence?.overallLevel === 'LOW';
+    const isRecThis = isLowConf ? c.id === 'safest' : c.id === 'balanced';
+
     results.push({
-      id: isLowConf ? 'safest' : 'balanced',
-      routeId: 'ROUTE-001',
-      name: isLowConf ? 'Safest Maritime Corridor' : 'Unified Valid Maritime Corridor',
-      type: isLowConf ? 'SAFE' : 'BALANCED',
-      color: isLowConf ? '#10b981' : '#0ea5e9',
+      id: c.id,
+      routeId: c.routeId,
+      name: c.name,
+      type: c.type,
+      color: c.color,
       waypoints: e.waypoints,
       distanceNm: e.distanceNm,
       etaHours: e.etaHours,
@@ -812,16 +1061,18 @@ export function generateRouteAlternatives(
       hazardsCount: e.hazardsCount,
       hazardSummary: e.hazardSummary,
       assumptions: [
-        `Vessel cruising speed: ${vessel.cruisingSpeedKnots} knots`,
+        `Vessel cruising speed: ${vessel.cruisingSpeedKnots} knots (${c.name})`,
         `Max sea-ice concentration: ${e.maxSeaIceConc}% (Limit: ${vessel.maxSeaIceConcentrationPercent}%)`,
       ],
-      constraintsSatisfied,
-      isRecommended: true,
-      recommendationRationale: isLowConf
-        ? 'RECOMMENDED: Elevated environmental uncertainty steers vessel recommendation to Safest Corridor.'
-        : 'All optimization objectives (SAFEST, BALANCED, FASTEST) converge on the same maritime corridor under current constraints.',
+      constraintsSatisfied: e.maxSeaIceConc <= vessel.maxSeaIceConcentrationPercent,
+      isRecommended: isRecThis,
+      recommendationRationale: isRecThis
+        ? (isLowConf
+            ? 'RECOMMENDED: Elevated environmental uncertainty steers vessel recommendation to Safest Corridor.'
+            : `RECOMMENDED: Optimal balance between travel time (${e.etaHours}h) and navigational risk index (${e.riskIndex}/100).`)
+        : `Calculated under ${c.label} cost optimization parameters along valid open water.`,
       resilienceScore: e.resilienceScore,
-      labels: ['SAFEST', 'BALANCED', 'FASTEST'],
+      labels: [c.label],
       geometryHash: e.geometryHash,
       costBreakdown: {
         distanceCost: Number((0.2 * (e.distanceNm / 10)).toFixed(1)),
@@ -829,145 +1080,9 @@ export function generateRouteAlternatives(
         timeCost: Number((0.2 * e.etaHours).toFixed(1)),
         riskCost: Number((0.25 * e.riskIndex).toFixed(1)),
         uncertaintyCost: Number((0.15 * e.uncertaintyScore).toFixed(1)),
-        totalCost: Number(e.balancedCost.toFixed(1)),
+        totalCost: Number((c.id === 'safest' ? e.safestCost : c.id === 'balanced' ? e.balancedCost : e.fastestCost).toFixed(1)),
       },
     });
-  } else if (evaluatedList.length === 2) {
-    const e1 = evaluatedList[0];
-    const e2 = evaluatedList[1];
-
-    const r1IsSafer = e1.safestCost <= e2.safestCost;
-    const safeCorridor = r1IsSafer ? e1 : e2;
-    const fastCorridor = r1IsSafer ? e2 : e1;
-
-    results.push({
-      id: 'safest',
-      routeId: 'ROUTE-001',
-      name: 'Safest & Balanced Oceanic Corridor',
-      type: 'SAFE',
-      color: '#10b981',
-      waypoints: safeCorridor.waypoints,
-      distanceNm: safeCorridor.distanceNm,
-      etaHours: safeCorridor.etaHours,
-      fuelTons: safeCorridor.fuelTons,
-      riskIndex: safeCorridor.riskIndex,
-      uncertaintyScore: safeCorridor.uncertaintyScore,
-      confidence: safeCorridor.confidence,
-      hazardsCount: safeCorridor.hazardsCount,
-      hazardSummary: safeCorridor.hazardSummary,
-      assumptions: [
-        `Vessel cruising speed: ${vessel.cruisingSpeedKnots} knots`,
-        `Max sea-ice concentration: ${safeCorridor.maxSeaIceConc}%`,
-      ],
-      constraintsSatisfied: safeCorridor.maxSeaIceConc <= vessel.maxSeaIceConcentrationPercent,
-      isRecommended: true,
-      recommendationRationale: 'RECOMMENDED: Primary maritime corridor offering lowest environmental risk.',
-      resilienceScore: safeCorridor.resilienceScore,
-      labels: ['SAFEST', 'BALANCED'],
-      geometryHash: safeCorridor.geometryHash,
-      costBreakdown: {
-        distanceCost: Number((0.1 * (safeCorridor.distanceNm / 10)).toFixed(1)),
-        fuelCost: Number((0.1 * safeCorridor.fuelTons).toFixed(1)),
-        timeCost: Number((0.1 * safeCorridor.etaHours).toFixed(1)),
-        riskCost: Number((0.45 * safeCorridor.riskIndex).toFixed(1)),
-        uncertaintyCost: Number((0.25 * safeCorridor.uncertaintyScore).toFixed(1)),
-        totalCost: Number(safeCorridor.safestCost.toFixed(1)),
-      },
-    });
-
-    results.push({
-      id: 'fastest',
-      routeId: 'ROUTE-002',
-      name: 'Direct Fast Coastal Highway',
-      type: 'FAST',
-      color: '#f59e0b',
-      waypoints: fastCorridor.waypoints,
-      distanceNm: fastCorridor.distanceNm,
-      etaHours: fastCorridor.etaHours,
-      fuelTons: fastCorridor.fuelTons,
-      riskIndex: fastCorridor.riskIndex,
-      uncertaintyScore: fastCorridor.uncertaintyScore,
-      confidence: fastCorridor.confidence,
-      hazardsCount: fastCorridor.hazardsCount,
-      hazardSummary: fastCorridor.hazardSummary,
-      assumptions: [
-        `Vessel cruising speed: ${vessel.cruisingSpeedKnots} knots`,
-        `Max sea-ice concentration: ${fastCorridor.maxSeaIceConc}%`,
-      ],
-      constraintsSatisfied: fastCorridor.maxSeaIceConc <= vessel.maxSeaIceConcentrationPercent,
-      isRecommended: false,
-      recommendationRationale: 'Direct coastal track prioritizing minimum ETA while avoiding land hazards.',
-      resilienceScore: fastCorridor.resilienceScore,
-      labels: ['FASTEST'],
-      geometryHash: fastCorridor.geometryHash,
-      costBreakdown: {
-        distanceCost: Number((0.35 * (fastCorridor.distanceNm / 10)).toFixed(1)),
-        fuelCost: Number((0.25 * fastCorridor.fuelTons).toFixed(1)),
-        timeCost: Number((0.3 * fastCorridor.etaHours).toFixed(1)),
-        riskCost: Number((0.08 * fastCorridor.riskIndex).toFixed(1)),
-        uncertaintyCost: Number((0.02 * fastCorridor.uncertaintyScore).toFixed(1)),
-        totalCost: Number(fastCorridor.fastestCost.toFixed(1)),
-      },
-    });
-  } else {
-    const sortedByRisk = [...evaluatedList].sort((a, b) => a.safestCost - b.safestCost);
-    const sortedByTime = [...evaluatedList].sort((a, b) => a.fastestCost - b.fastestCost);
-
-    const safestCand = sortedByRisk[0];
-    const fastestCand = sortedByTime[0] !== safestCand ? sortedByTime[0] : sortedByTime[1] || evaluatedList[1];
-    const balancedCand = evaluatedList.find((e) => e !== safestCand && e !== fastestCand) || evaluatedList[0];
-
-    const cands: { id: 'safest' | 'balanced' | 'fastest'; name: string; type: 'SAFE' | 'BALANCED' | 'FAST'; color: string; cand: EvaluatedCorridor; label: 'SAFEST' | 'BALANCED' | 'FASTEST' }[] = [
-      { id: 'safest', name: 'Outer Oceanic Deep-Water Corridor (Safest)', type: 'SAFE', color: '#10b981', cand: safestCand, label: 'SAFEST' },
-      { id: 'balanced', name: 'Coastal Research Passage Corridor (Balanced)', type: 'BALANCED', color: '#0ea5e9', cand: balancedCand, label: 'BALANCED' },
-      { id: 'fastest', name: 'Direct Coastal Geodesic Track (Fastest)', type: 'FAST', color: '#f59e0b', cand: fastestCand, label: 'FASTEST' },
-    ];
-
-    let idx = 1;
-    for (const c of cands) {
-      const e = c.cand;
-      const isLowConf = decisionConfidence?.overallLevel === 'LOW';
-      const isRecThis = isLowConf ? c.id === 'safest' : c.id === 'balanced';
-
-      results.push({
-        id: c.id,
-        routeId: `ROUTE-00${idx++}`,
-        name: c.name,
-        type: c.type,
-        color: c.color,
-        waypoints: e.waypoints,
-        distanceNm: e.distanceNm,
-        etaHours: e.etaHours,
-        fuelTons: e.fuelTons,
-        riskIndex: e.riskIndex,
-        uncertaintyScore: e.uncertaintyScore,
-        confidence: e.confidence,
-        hazardsCount: e.hazardsCount,
-        hazardSummary: e.hazardSummary,
-        assumptions: [
-          `Vessel cruising speed: ${vessel.cruisingSpeedKnots} knots (${c.name})`,
-          `Max sea-ice concentration: ${e.maxSeaIceConc}%`,
-        ],
-        constraintsSatisfied: e.maxSeaIceConc <= vessel.maxSeaIceConcentrationPercent,
-        isRecommended: isRecThis,
-        recommendationRationale: isRecThis
-          ? (isLowConf
-              ? 'RECOMMENDED: Elevated environmental uncertainty steers vessel recommendation to Safest Corridor.'
-              : `RECOMMENDED: Optimal balance between travel time (${e.etaHours}h) and navigational risk index (${e.riskIndex}/100).`)
-          : `Distinct corridor evaluated under ${c.label} cost optimization parameters.`,
-        resilienceScore: e.resilienceScore,
-        labels: [c.label],
-        geometryHash: e.geometryHash,
-        costBreakdown: {
-          distanceCost: Number((0.2 * (e.distanceNm / 10)).toFixed(1)),
-          fuelCost: Number((0.2 * e.fuelTons).toFixed(1)),
-          timeCost: Number((0.2 * e.etaHours).toFixed(1)),
-          riskCost: Number((0.25 * e.riskIndex).toFixed(1)),
-          uncertaintyCost: Number((0.15 * e.uncertaintyScore).toFixed(1)),
-          totalCost: Number((c.id === 'safest' ? e.safestCost : c.id === 'balanced' ? e.balancedCost : e.fastestCost).toFixed(1)),
-        },
-      });
-    }
   }
 
   // Handle recommendation block / confidence penalties
@@ -984,3 +1099,4 @@ export function generateRouteAlternatives(
       : r.recommendationRationale,
   }));
 }
+

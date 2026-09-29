@@ -141,6 +141,45 @@ export async function runRouteGeographyValidationTests() {
   const routes4 = generateRouteAlternatives(mission4, defaultVessel, [], [], defaultWeather);
   assert(routes4.length > 0, 'Test 4: Palmer -> Rothera around Anvers/Adelaide Islands finds valid water path');
 
+  // TEST 4B: East Antarctica Station Pairs (Maitri -> Bharati, Bharati -> Mawson, Rothera -> Maitri)
+  const maitriStation = getStationById('st-maitri')!;
+  const bharatiStation = getStationById('st-bharati')!;
+  const mawsonStation = getStationById('st-mawson')!;
+
+  const missionMaitriBharati: MissionConfig = {
+    ...mission1,
+    id: 'm-mb',
+    title: 'East Antarctica Maitri to Bharati Voyage',
+    startLocation: { name: maitriStation.id, lat: maitriStation.lat, lon: maitriStation.lon },
+    destination: { name: bharatiStation.id, lat: bharatiStation.lat, lon: bharatiStation.lon },
+  };
+  const routesMB = generateRouteAlternatives(missionMaitriBharati, defaultVessel, [], [], defaultWeather);
+  assert(routesMB.length > 0, 'Test 4B.1: Maitri -> Bharati produces at least one valid maritime route in open sea');
+  for (const r of routesMB) {
+    const val = validateMaritimeRouteGeometry(r.waypoints);
+    assert(val.isValid === true && val.landIntersectionsCount === 0, `Test 4B.1: Route ${r.name} is 100% clean water`);
+  }
+
+  const missionBharatiMawson: MissionConfig = {
+    ...mission1,
+    id: 'm-bm',
+    title: 'East Antarctica Bharati to Mawson Voyage',
+    startLocation: { name: bharatiStation.id, lat: bharatiStation.lat, lon: bharatiStation.lon },
+    destination: { name: mawsonStation.id, lat: mawsonStation.lat, lon: mawsonStation.lon },
+  };
+  const routesBM = generateRouteAlternatives(missionBharatiMawson, defaultVessel, [], [], defaultWeather);
+  assert(routesBM.length > 0, 'Test 4B.2: Bharati -> Mawson produces valid open sea route');
+
+  const missionRotheraMaitri: MissionConfig = {
+    ...mission1,
+    id: 'm-rm',
+    title: 'Trans-Antarctic Rothera to Maitri Voyage',
+    startLocation: { name: rotheraStation.id, lat: rotheraStation.lat, lon: rotheraStation.lon },
+    destination: { name: maitriStation.id, lat: maitriStation.lat, lon: maitriStation.lon },
+  };
+  const routesRM = generateRouteAlternatives(missionRotheraMaitri, defaultVessel, [], [], defaultWeather);
+  assert(routesRM.length > 0, 'Test 4B.3: Rothera -> Maitri produces valid trans-ocean route');
+
   // TEST 5: Route candidate crossing land. Expected: REJECTED.
   const landPolyline: [number, number][] = [
     [-67.57, -68.13],

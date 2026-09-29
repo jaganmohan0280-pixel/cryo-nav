@@ -883,15 +883,17 @@ async function startServer() {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
         return res.status(503).json({
+          success: false,
           error: "GEMINI_API_KEY is not configured in the environment.",
           fallback: true,
           response:
-            "CRYO NAV AI Assistant offline: GEMINI_API_KEY is not configured in the platform secrets. Local decision support rules are active.",
+            "CRYO NAV AI Assistant offline: GEMINI_API_KEY is not configured in the platform secrets. Grounded CRYO NAV decision context remains active.",
         });
       }
 
       const question = req.body.question || req.body.message || req.body.prompt;
       const context = req.body.context || {};
+      const conversationHistory = req.body.conversation || [];
       const customSystemInstruction = req.body.systemInstruction;
 
       if (!question) {
@@ -922,28 +924,54 @@ CRITICAL RULES:
 5. Emphasize that the human captain/navigator always retains ultimate navigational authority and makes the final decision.
 6. Keep responses professional, authoritative, maritime-standard, clear, and scannable.`;
 
+      let historyText = '';
+      if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+        const recent = conversationHistory.slice(-6);
+        historyText = '\n\nRECENT CONVERSATION HISTORY:\n' + recent.map((m: any) => `${m.sender === 'user' ? 'NAVIGATOR' : 'ASSISTANT'}: ${m.text}`).join('\n');
+      }
+
       const prompt = `CURRENT ANTARCTIC ENVIRONMENTAL STATE & NAVIGATION CONTEXT:
 ${JSON.stringify(context || {}, null, 2)}
+${historyText}
 
 OPERATOR / NAVIGATOR INQUIRY:
 ${question}
 
 Provide an objective, structured decision-support response explaining the rationale, hazards, and confidence levels.`;
 
-      const aiResponse = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents: prompt,
-        config: {
-          systemInstruction,
-          temperature: 0.3,
-        },
-      });
+      const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash"];
+      let text = "";
+      let lastErr: any = null;
 
-      const text = aiResponse.text || "No response generated from model.";
-      return res.json({ response: text, reply: text, timestamp: new Date().toISOString() });
+      for (const modelName of modelsToTry) {
+        try {
+          const aiResponse = await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config: {
+              systemInstruction,
+              temperature: 0.3,
+            },
+          });
+          if (aiResponse && aiResponse.text) {
+            text = aiResponse.text;
+            break;
+          }
+        } catch (mErr: any) {
+          console.warn(`Gemini model ${modelName} call failed, trying fallback:`, mErr?.message || mErr);
+          lastErr = mErr;
+        }
+      }
+
+      if (!text) {
+        throw new Error(lastErr?.message || "Failed to generate content from Gemini models.");
+      }
+
+      return res.json({ success: true, response: text, reply: text, timestamp: new Date().toISOString(), source: "gemini" });
     } catch (err: any) {
       console.error("Gemini assistant error:", err);
       return res.status(500).json({
+        success: false,
         error: "Failed to query Gemini AI navigation assistant.",
         details: err.message || "Unknown error",
         fallback: true,

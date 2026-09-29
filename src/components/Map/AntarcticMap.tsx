@@ -158,6 +158,8 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
     mapLayers,
     toggleMapLayer,
     gpsTracking,
+    toggleFollowVessel,
+    focusVessel,
     forecastHorizonHours,
     selectedIcebergId,
     setSelectedIcebergId,
@@ -233,6 +235,11 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
     navMaskLayerRef.current.addTo(map);
 
     mapInstanceRef.current = map;
+
+    // Turn off follow vessel if user manually pans map
+    map.on('dragstart', () => {
+      toggleFollowVessel(false);
+    });
 
     // Track map zoom level dynamically
     map.on('zoomend', () => {
@@ -321,6 +328,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
   }, [mission.startLocation, mission.destination, routes, selectedIcebergId, isTrajectoryMode, isSeaIceMode, icebergs]);
 
   const handleCenterVessel = () => {
+    focusVessel();
     if (!mapInstanceRef.current) return;
     mapInstanceRef.current.setView([gpsTracking.currentLat, gpsTracking.currentLon], 7, { animate: true });
   };
@@ -486,13 +494,20 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
       const isDest = Math.abs(st.lat - mission.destination.lat) < 0.1 && Math.abs(st.lon - mission.destination.lon) < 0.1;
       if (isStart || isDest) return;
 
-      const stationCleanName = st.name.split('(')[0].trim();
+      const stationCleanName = st.shortName || st.name.split('(')[0].trim();
+      const showFullText = mapZoom >= 6;
       const iconHtml = `
-        <div class="relative flex items-center justify-center">
-          <div class="w-3 h-3 rounded-full bg-[#596267] ring-2 ring-white"></div>
-          <span class="absolute left-4 whitespace-nowrap text-[12px] font-sans font-medium px-2 py-0.5 rounded-md bg-[#263238]/90 border border-slate-600 text-white pointer-events-none shadow-md" title="${st.name}">
-            ${stationCleanName}
-          </span>
+        <div class="relative flex items-center justify-center group cursor-pointer">
+          <div class="w-3 h-3 rounded-full bg-[#075563] ring-2 ring-white shadow-md group-hover:scale-125 transition"></div>
+          ${
+            showFullText
+              ? `<span class="absolute left-4 whitespace-nowrap text-[11px] font-sans font-medium px-2 py-0.5 rounded-md bg-[#075563]/90 border border-[#2BB9BD]/40 text-white pointer-events-none shadow-sm">
+                  ${stationCleanName}
+                </span>`
+              : `<span class="absolute left-4 opacity-0 group-hover:opacity-100 transition whitespace-nowrap text-[11px] font-sans font-medium px-2 py-0.5 rounded-md bg-[#075563] border border-[#2BB9BD] text-white pointer-events-none shadow-md">
+                  ${st.name}
+                </span>`
+          }
         </div>
       `;
 
@@ -506,9 +521,12 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
       const marker = L.marker([st.lat, st.lon], { icon: customIcon });
       marker.bindPopup(`
         <div class="p-2.5 space-y-1 text-xs font-sans">
-          <div class="font-bold text-[#263238] text-sm">${st.name}</div>
-          <div class="text-xs text-[#596267]">
-            Lat: ${Math.abs(st.lat).toFixed(2)}°S, Lon: ${Math.abs(st.lon).toFixed(2)}°W
+          <div class="font-bold text-[#075563] text-sm">${st.name}</div>
+          <div class="text-xs text-[#63777B] font-medium">
+            Operator: ${st.operator} (${st.country})
+          </div>
+          <div class="text-xs text-[#63777B]">
+            Lat: ${Math.abs(st.lat).toFixed(2)}°S, Lon: ${Math.abs(st.lon).toFixed(2)}°${st.lon < 0 ? 'W' : 'E'}
           </div>
         </div>
       `);
@@ -1307,54 +1325,134 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
 
 
   // Update Vessel Telemetry Marker & Track
+  // Map Follow Vessel Smooth Camera Panning Effect
+  useEffect(() => {
+    if (!mapInstanceRef.current || !gpsTracking.followVessel || !gpsTracking.isSimulating) return;
+
+    mapInstanceRef.current.panTo([gpsTracking.currentLat, gpsTracking.currentLon], {
+      animate: true,
+      duration: 0.5,
+    });
+  }, [gpsTracking.currentLat, gpsTracking.currentLon, gpsTracking.followVessel, gpsTracking.isSimulating]);
+
+  // Update Vessel Telemetry Marker & Track Layer
   useEffect(() => {
     const layer = vesselLayerRef.current;
     layer.clearLayers();
 
     if (isTrajectoryMode || isSeaIceMode) return;
+    if (!gpsTracking) return;
 
-    if ((gpsTracking?.actualTrack?.length ?? 0) > 1) {
-      const trackLine = L.polyline(gpsTracking.actualTrack, {
-        color: '#a855f7',
-        weight: 2,
-        opacity: 0.75,
-        dashArray: '2, 3',
+    const vesselLat = Number.isFinite(gpsTracking.currentLat)
+      ? gpsTracking.currentLat
+      : mission?.startLocation?.lat ?? -64.5;
+    const vesselLon = Number.isFinite(gpsTracking.currentLon)
+      ? gpsTracking.currentLon
+      : mission?.startLocation?.lon ?? -64.2;
+    const vesselName = selectedVessel?.name || 'RV Research Vessel';
+    const heading = Number.isFinite(gpsTracking.headingDeg) ? gpsTracking.headingDeg : 0;
+
+    // 1. Render Completed Track / Breadcrumb Line
+    const validTrack = (gpsTracking?.actualTrack || []).filter(
+      (pt) => Array.isArray(pt) && pt.length >= 2 && Number.isFinite(pt[0]) && Number.isFinite(pt[1])
+    );
+    if (validTrack.length > 1) {
+      const trackLine = L.polyline(validTrack, {
+        color: '#38bdf8',
+        weight: 3,
+        opacity: 0.85,
+        dashArray: '4, 4',
       });
+      trackLine.bindTooltip(
+        `<div class="font-mono text-[11px] p-1 select-none font-bold text-cyan-200">Vessel Track Breadcrumb (${gpsTracking.distanceTraveledNm || 0} nm traveled)</div>`,
+        { sticky: true }
+      );
       trackLine.addTo(layer);
     }
 
+    // 2. Render Custom Antarctic Research Vessel SVG Marker
     const vesselIconHtml = `
-      <div class="relative flex items-center justify-center">
-        <div class="relative w-5 h-5 rounded-full bg-slate-900 border-2 border-white flex items-center justify-center shadow-md">
-          <div class="w-1.5 h-1.5 rounded-full bg-amber-400"></div>
-        </div>
-        <div class="absolute w-1 h-3.5 bg-slate-900 origin-bottom" style="transform: translateY(-7px) rotate(${gpsTracking.headingDeg}deg)"></div>
+      <div class="relative flex items-center justify-center select-none cursor-pointer" title="${vesselName}">
+        <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(${heading}deg); transform-origin: center; filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.65)); transition: transform 0.35s linear;">
+          <!-- Stern Hydrodynamic Wake Spray (Fading V-shape trailing ship stern) -->
+          ${
+            gpsTracking.isSimulating
+              ? `<path d="M17 35 L12 43 M27 35 L32 43 M22 36 L22 44" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round" opacity="0.65" stroke-dasharray="2,2"/>`
+              : ''
+          }
+          <!-- Bow Directional Heading Sector Beam -->
+          <path d="M22 0 L28 10 L16 10 Z" fill="#38bdf8" opacity="0.75"/>
+          <path d="M22 1 L22 10" stroke="#ffffff" stroke-width="1" opacity="0.9"/>
+          
+          <!-- Outer Polar Icebelt Hull (Dark Navy with White Contrast Border) -->
+          <path d="M22 3 C26.5 9, 29 18, 29 30 C29 34.5, 25.5 37, 22 37 C18.5 37, 15 34.5, 15 30 C15 18, 17.5 9, 22 3 Z" fill="#0f172a" stroke="#ffffff" stroke-width="1.8"/>
+          
+          <!-- Primary Research Deck Layer -->
+          <path d="M22 7 C25 11.5, 27 18.5, 27 29 C27 32, 24.5 34.5, 22 34.5 C19.5 34.5, 17 32, 17 29 C17 18.5, 19 11.5, 22 7 Z" fill="#1e293b"/>
+          
+          <!-- Foredeck Hatch & Cargo Boom -->
+          <rect x="20" y="11" width="4" height="3" rx="0.8" fill="#475569"/>
+          
+          <!-- Main Bridge Superstructure -->
+          <rect x="18.5" y="16" width="7" height="8.5" rx="1.5" fill="#38bdf8" stroke="#0284c7" stroke-width="0.9"/>
+          <rect x="19.5" y="17.5" width="5" height="2" rx="0.5" fill="#e0f2fe"/>
+          
+          <!-- Navigation Position Lights (Starboard Green, Port Red) -->
+          <circle cx="25.5" cy="18.5" r="0.9" fill="#22c55e"/>
+          <circle cx="18.5" cy="18.5" r="0.9" fill="#ef4444"/>
+          
+          <!-- Main Radar Mast & Searchlight -->
+          <circle cx="22" cy="19" r="1.5" fill="#f59e0b" stroke="#b45309" stroke-width="0.5"/>
+          <line x1="22" y1="17.5" x2="22" y2="15.5" stroke="#f59e0b" stroke-width="1.2" stroke-linecap="round"/>
+          
+          <!-- Aft Deck Helipad (H Marking) -->
+          <circle cx="22" cy="28.5" r="3.5" fill="#1e293b" stroke="#64748b" stroke-width="0.8"/>
+          <path d="M20 27 V30 M24 27 V30 M20 28.5 H24" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
       </div>
     `;
 
     const vesselIcon = L.divIcon({
       html: vesselIconHtml,
       className: 'custom-vessel-marker',
-      iconSize: [24, 24],
-      iconAnchor: [12, 12],
+      iconSize: [44, 44],
+      iconAnchor: [22, 22],
     });
 
-    const marker = L.marker([gpsTracking.currentLat, gpsTracking.currentLon], { icon: vesselIcon });
+    const marker = L.marker([vesselLat, vesselLon], { icon: vesselIcon });
+
+    const statusBadge = gpsTracking.statusLabel || (gpsTracking.isSimulating ? 'UNDERWAY' : 'IDLE');
+    const etaStr = gpsTracking.etaHours != null && gpsTracking.etaHours > 0 ? `${gpsTracking.etaHours} hrs` : 'Arrived';
+
     marker.bindPopup(`
-      <div class="p-2.5 font-mono text-xs space-y-1">
-        <div class="font-bold text-slate-900 flex items-center justify-between">
-          <span>${selectedVessel.name}</span>
-          <span class="text-blue-700 text-[10px] font-semibold">${gpsTracking.isSimulating ? 'TRACKING' : 'IDLE'}</span>
+      <div class="p-3 font-mono text-xs space-y-1.5 min-w-[240px]">
+        <div class="font-bold text-slate-900 border-b border-slate-200 pb-1 flex items-center justify-between">
+          <span class="text-sm text-[#075563] flex items-center gap-1.5">
+            🚢 ${selectedVessel.name}
+          </span>
+          <span class="text-[9px] px-1.5 py-0.5 rounded font-bold ${
+            gpsTracking.isSimulating ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-slate-100 text-slate-700 border border-slate-300'
+          }">
+            ${statusBadge}
+          </span>
         </div>
         <div class="text-slate-700 text-[11px]">
-          Pos: ${Math.abs(gpsTracking.currentLat).toFixed(3)}°S, ${Math.abs(gpsTracking.currentLon).toFixed(3)}°W
+          <strong>Position:</strong> ${Math.abs(gpsTracking.currentLat).toFixed(3)}°S, ${Math.abs(gpsTracking.currentLon).toFixed(3)}°${gpsTracking.currentLon < 0 ? 'W' : 'E'}
         </div>
-        <div class="flex justify-between text-slate-600 text-[11px]">
-          <span>Heading: ${gpsTracking.headingDeg}°</span>
-          <span>Speed: ${gpsTracking.speedKnots} kts</span>
+        <div class="flex justify-between text-slate-700 text-[11px]">
+          <span><strong>Heading:</strong> ${gpsTracking.headingDeg}°</span>
+          <span><strong>Speed:</strong> ${gpsTracking.speedKnots} kts</span>
         </div>
-        <div class="text-slate-600 text-[11px]">
-          Progress: <span class="text-emerald-700 font-bold">${gpsTracking.routeProgressPct}%</span> (${gpsTracking.distanceTraveledNm} / ${gpsTracking.distanceRemainingNm + gpsTracking.distanceTraveledNm} nm)
+        <div class="flex justify-between text-slate-700 text-[11px]">
+          <span><strong>Progress:</strong> <strong class="text-emerald-700">${gpsTracking.routeProgressPct}%</strong></span>
+          <span><strong>ETA:</strong> ${etaStr}</span>
+        </div>
+        <div class="text-slate-600 text-[10px] border-t border-slate-200 pt-1 flex justify-between">
+          <span>Traveled: ${gpsTracking.distanceTraveledNm} nm</span>
+          <span>Remaining: ${gpsTracking.distanceRemainingNm} nm</span>
+        </div>
+        <div class="text-[9px] text-slate-400 italic mt-0.5">
+          SIMULATED GPS TELEMETRY FEED (Vessel Speed ${gpsTracking.simulationSpeedMultiplier}x)
         </div>
       </div>
     `);
