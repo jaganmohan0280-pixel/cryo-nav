@@ -98,10 +98,10 @@ export function runDecisionImpactTests() {
   const productHighOverlap: SatelliteProduct = {
     ...INITIAL_SATELLITE_PRODUCTS[0],
     footprint: {
-      centerLat: -70.0,
-      centerLon: 40.0,
+      centerLat: -64.8,
+      centerLon: -64.2,
       radiusNm: 140,
-      description: 'East Antarctic Transit Corridor',
+      description: 'Gerlache Strait Transit Corridor',
     },
   };
   const resHighOverlap = evaluateProductDecisionImpact(
@@ -115,7 +115,7 @@ export function runDecisionImpactTests() {
     'DEMO'
   );
   assert(
-    resHighOverlap.scoreBreakdown.spatialRelevance >= 40,
+    resHighOverlap.scoreBreakdown.spatialRelevance >= 50,
     `1. High route-corridor overlap increases spatial relevance (${resHighOverlap.scoreBreakdown.spatialRelevance}%).`
   );
 

@@ -96,7 +96,6 @@ export interface MapLayerToggles {
   ocean: boolean;
   routes: boolean;
   sarCandidates: boolean;
-  stations: boolean;
 }
 
 interface AppContextType {
@@ -462,7 +461,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ocean: true,
     routes: true,
     sarCandidates: false,
-    stations: true,
   });
 
   const [connectionState, setConnectionStateInternal] = useState<ConnectionState>('ONLINE');
@@ -1100,7 +1098,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ocean: true,
       routes: true,
       sarCandidates: false,
-      stations: true,
     });
     setConnectionStateInternal('ONLINE');
     setIsLiveTelemetry(false);

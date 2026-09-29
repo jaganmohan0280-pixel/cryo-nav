@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import L from 'leaflet';
 import { useApp } from '../../context/AppContext';
-import { AUTHORITATIVE_RESEARCH_STATIONS } from '../../data/researchStations';
+import { ANTARCTIC_STATIONS } from '../../data/syntheticAntarcticData';
 import { RoutePlannerWidget } from '../RoutePlannerWidget';
 import { calculateDistanceToRouteNm, calculateRouteCorridorPolygon } from '../../services/riskEngine';
 import { forecastSeaIceField } from '../../services/seaIceModel';
@@ -336,15 +336,6 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
     mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 9, animate: true });
   };
 
-  const handleFullAntarcticaView = () => {
-    if (!mapInstanceRef.current) return;
-    const bounds = L.latLngBounds([
-      [-82.0, -180.0],
-      [-60.0, 180.0],
-    ]);
-    mapInstanceRef.current.fitBounds(bounds, { padding: [20, 20], animate: true });
-  };
-
   const handleExecuteAreaAnalysis = useCallback(() => {
     if (!selectedArea) return;
     const report = generateAreaConditionReport(
@@ -490,7 +481,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
       .addTo(layer);
 
     // 3. Render Antarctic Regional Stations
-    AUTHORITATIVE_RESEARCH_STATIONS.forEach((st) => {
+    ANTARCTIC_STATIONS.forEach((st) => {
       const isStart = Math.abs(st.lat - mission.startLocation.lat) < 0.1 && Math.abs(st.lon - mission.startLocation.lon) < 0.1;
       const isDest = Math.abs(st.lat - mission.destination.lat) < 0.1 && Math.abs(st.lon - mission.destination.lon) < 0.1;
       if (isStart || isDest) return;
@@ -1397,74 +1388,6 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
     });
   }, [showNavMask]);
 
-  // Render Research Stations (Origin, Destination & Surrounding Regional Stations)
-  useEffect(() => {
-    const layer = stationsLayerRef.current;
-    layer.clearLayers();
-
-    if (!mapLayers.stations) return;
-
-    AUTHORITATIVE_RESEARCH_STATIONS.forEach((st) => {
-      const isOrigin = Math.abs(st.lat - mission.startLocation.lat) < 0.15 && Math.abs(st.lon - mission.startLocation.lon) < 0.15;
-      const isDest = Math.abs(st.lat - mission.destination.lat) < 0.15 && Math.abs(st.lon - mission.destination.lon) < 0.15;
-
-      const bgColor = isOrigin
-        ? 'bg-emerald-600 border-emerald-300 ring-2 ring-emerald-500/40 scale-110'
-        : isDest
-        ? 'bg-cyan-600 border-cyan-300 ring-2 ring-cyan-500/40 scale-110'
-        : 'bg-[#315E62] border-white/80';
-
-      const markerHtml = `
-        <div class="relative flex items-center justify-center select-none cursor-pointer">
-          <div class="w-4 h-4 rounded-full ${bgColor} border-2 shadow-md flex items-center justify-center">
-            <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
-          </div>
-          ${
-            isOrigin
-              ? `
-            <div class="absolute -top-7 whitespace-nowrap px-2 py-0.5 rounded font-sans text-[10px] font-bold bg-emerald-950 text-emerald-100 border border-emerald-400 shadow-md flex items-center gap-1 z-[1000]">
-              <span>ORIGIN: ${st.shortName}</span>
-            </div>
-          `
-              : isDest
-              ? `
-            <div class="absolute -top-7 whitespace-nowrap px-2 py-0.5 rounded font-sans text-[10px] font-bold bg-cyan-950 text-cyan-100 border border-cyan-400 shadow-md flex items-center gap-1 z-[1000]">
-              <span>DESTINATION: ${st.shortName}</span>
-            </div>
-          `
-              : ''
-          }
-        </div>
-      `;
-
-      const stationIcon = L.divIcon({
-        html: markerHtml,
-        className: 'custom-station-marker',
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
-      });
-
-      const marker = L.marker([st.lat, st.lon], { icon: stationIcon });
-      marker.bindTooltip(
-        `
-        <div class="p-1 font-sans text-[11px] leading-tight select-none">
-          <div class="font-bold text-[#315E62] flex items-center gap-1.5">
-            <span>${st.name}</span>
-            ${isOrigin ? '<span class="text-[9px] px-1 bg-emerald-100 text-emerald-800 font-bold rounded">ORIGIN</span>' : ''}
-            ${isDest ? '<span class="text-[9px] px-1 bg-cyan-100 text-cyan-800 font-bold rounded">DESTINATION</span>' : ''}
-          </div>
-          <div class="text-[#596267]">${st.operator} (${st.country})</div>
-          <div class="text-[#737A59] text-[10px] mt-0.5">${st.region}</div>
-          <div class="text-[10px] text-slate-500 font-mono mt-0.5">${Math.abs(st.lat).toFixed(2)}°S, ${Math.abs(st.lon).toFixed(2)}°E</div>
-        </div>
-      `,
-        { sticky: true, opacity: 0.95 }
-      );
-
-      marker.addTo(layer);
-    });
-  }, [mapLayers.stations, mission.startLocation, mission.destination]);
-
 
 
   // Fetch candidate records & confirmation evaluations when SAR Candidates layer is enabled
@@ -1852,17 +1775,10 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
             </button>
             <button
               onClick={handleResetVoyageView}
-              title="Fit Mission Corridor Bounds (Maitri to Bharati)"
-              className="px-3 py-1 rounded-[6px] text-xs font-medium text-[#315E62] hover:bg-[#E1ECEB] bg-[#FCFBF7] border border-[#D4D1C7] flex items-center gap-1.5 transition"
-            >
-              <Compass className="w-3.5 h-3.5 text-[#315E62]" /> Focus Corridor
-            </button>
-            <button
-              onClick={handleFullAntarcticaView}
-              title="Zoom out to Full Antarctic Continent"
+              title="Fit Antarctic Voyage Bounds"
               className="px-3 py-1 rounded-[6px] text-xs font-medium text-[#364148] hover:text-[#263238] bg-[#FCFBF7] border border-[#D4D1C7] flex items-center gap-1.5 transition"
             >
-              <Globe className="w-3.5 h-3.5 text-[#596267]" /> Full Antarctica
+              <Compass className="w-3.5 h-3.5 text-[#596267]" /> Full voyage
             </button>
           </div>
         )}
